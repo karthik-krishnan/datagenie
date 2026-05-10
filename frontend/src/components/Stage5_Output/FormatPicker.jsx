@@ -13,27 +13,25 @@ const FORMAT_LABELS = {
 const LABEL_TO_ID = Object.fromEntries(Object.entries(FORMAT_LABELS).map(([k, v]) => [v, k]));
 
 export default function FormatPicker({ outputConfig, onChange, multiEntity }) {
-  const labels = (outputConfig.formats || []).map((id) => FORMAT_LABELS[id] || id);
+  const selected = outputConfig.formats?.[0] || "csv";
+  const selectedLabel = FORMAT_LABELS[selected] || selected;
 
   const onLabelChange = (next) => {
-    const ids = next.map((l) => LABEL_TO_ID[l] || l);
-    onChange({ formats: ids });
+    const id = LABEL_TO_ID[next] || next;
+    onChange({ formats: [id] });
   };
 
-  const hasJson = outputConfig.formats?.includes("json");
-  const hasXml = outputConfig.formats?.includes("xml");
+  const hasJson = selected === "json";
+  const hasXml = selected === "xml";
 
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Output formats</label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Output format</label>
         <ChipSelector
           options={Object.values(FORMAT_LABELS)}
-          value={labels}
+          value={selectedLabel}
           onChange={onLabelChange}
-          allowCustom
-          multi
-          customPlaceholder="Custom format..."
         />
       </div>
 
