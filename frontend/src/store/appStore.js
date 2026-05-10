@@ -43,6 +43,63 @@ export const useAppStore = create((set, get) => ({
       : set({ complianceRules: r }),
   setSelectedFrameworks: (f) => set({ selectedFrameworks: f }),
   setRelationships: (r) => set({ relationships: r }),
+
+  /**
+   * Apply the result of an /api/schema/infer call — populates schema,
+   * characteristics, compliance rules, frameworks, and relationships.
+   * Used by both App.jsx (normal flow) and ProfilePicker (demo shortcuts).
+   *
+   * @param result  - raw JSON from the infer endpoint
+   * @param goToStage - stage to navigate to after applying (default: 1)
+   */
+  applyInferResult: (result, goToStage = 1) => {
+    const state = get();
+    const ext = result.extracted || {};
+    const tables = result.tables || [];
+
+    // Build characteristics patch
+    const charPatch = { ...state.characteristics };
+    if (ext.volume) charPatch.volume = ext.volume;
+
+    if (ext.distributions && Object.keys(ext.distributions).length > 0) {
+      const formatted = {};
+      for (const [rawKey, vals] of Object.entries(ext.distributions)) {
+        let key = rawKey;
+        if (!rawKey.includes(".")) {
+          let tableName = tables[0]?.table_name || "records";
+          for (const t of tables) {
+            if (t.columns?.some((c) => c.name.toLowerCase() === rawKey.toLowerCase())) {
+              tableName = t.table_name;
+              break;
+            }
+          }
+          key = `${tableName}.${rawKey}`;
+        }
+        const fractional = {};
+        for (const [val, pct] of Object.entries(vals)) {
+          fractional[val] = Number(pct) / 100;
+        }
+        formatted[key] = fractional;
+      }
+      charPatch.distributions = formatted;
+    }
+    if (ext.per_parent_counts && Object.keys(ext.per_parent_counts).length > 0) {
+      charPatch.per_parent_counts = ext.per_parent_counts;
+    }
+
+    set({
+      inferredSchema: result,
+      relationships: result.relationships || [],
+      characteristics: charPatch,
+      ...(ext.compliance_rules && Object.keys(ext.compliance_rules).length > 0
+        ? { complianceRules: ext.compliance_rules }
+        : {}),
+      ...(result.frameworks_detected?.length > 0
+        ? { selectedFrameworks: result.frameworks_detected }
+        : {}),
+      currentStage: goToStage,
+    });
+  },
   setOutputConfig: (c) => set({ outputConfig: { ...get().outputConfig, ...c } }),
   setLLMSettings: (s) => { setLLMConfig(s); set({ llmSettings: s }); },
   setPreviewData: (p) => set({ previewData: p }),

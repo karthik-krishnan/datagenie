@@ -143,10 +143,12 @@ class TestInferTextOnly:
         assert r.status_code == 200
 
     def test_returns_schema(self):
+        # Demo mode (no real LLM) returns the demo template — the default is now
+        # the multi-table ecommerce template (customers/orders/order_items)
         r = _infer(context_text="columns: id, name, email, status")
         body = r.json()
         assert "tables" in body
-        assert len(body["tables"]) == 1
+        assert len(body["tables"]) >= 1
 
     def test_returns_columns_for_text_only(self):
         """Text-only + demo mode returns the demo template schema (not raw context columns).

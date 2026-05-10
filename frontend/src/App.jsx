@@ -95,6 +95,7 @@ export default function App() {
     profileId,
     setShowSaveProfileModal,
     reset,
+    applyInferResult,
   } = useAppStore();
 
   useEffect(() => {
@@ -131,61 +132,15 @@ export default function App() {
     setLoading(true);
     try {
       const result = await api.inferSchema(uploadedFiles, contextText, sessionId);
-      setInferredSchema(result);
 
       // Surface LLM provider configuration warnings (e.g. missing Azure endpoint)
       if (result.llm_warning) {
         setError(`⚠️ LLM configuration issue: ${result.llm_warning} Schema was inferred using built-in rules only.`);
       }
 
-      // Pre-populate subsequent stages from what the LLM/extractor understood
-      const ext = result.extracted || {};
-
-      // Volume + distributions — merge into characteristics
-      const charPatch = {};
-      if (ext.volume) charPatch.volume = ext.volume;
-
-      if (ext.distributions && Object.keys(ext.distributions).length > 0) {
-        // Transform extracted distributions to the format AttributeDistribution expects:
-        //   key:   "tableName.columnName"  (not just "columnName")
-        //   value: fraction 0.0–1.0        (not percentage 0–100)
-        const tables = result.tables || [];
-        const formatted = {};
-        for (const [colName, vals] of Object.entries(ext.distributions)) {
-          // Find which table has this column
-          let tableName = tables[0]?.table_name || "records";
-          for (const t of tables) {
-            if (t.columns?.some((c) => c.name.toLowerCase() === colName.toLowerCase())) {
-              tableName = t.table_name;
-              break;
-            }
-          }
-          const key = `${tableName}.${colName}`;
-          const fractional = {};
-          for (const [val, pct] of Object.entries(vals)) {
-            fractional[val] = Number(pct) / 100;
-          }
-          formatted[key] = fractional;
-        }
-        charPatch.distributions = formatted;
-      }
-
-      if (Object.keys(charPatch).length > 0) {
-        setCharacteristics(charPatch);
-      }
-
-      // Compliance rules — pre-populate Stage 3
-      if (ext.compliance_rules && Object.keys(ext.compliance_rules).length > 0) {
-        setComplianceRules(ext.compliance_rules);
-      }
-
-      // Pre-select detected frameworks so the user sees them ready to confirm/deselect
-      if (result.frameworks_detected?.length > 0) {
-        setSelectedFrameworks(result.frameworks_detected);
-      }
-
-      // Stay on Stage 1 so the user can review and edit the inferred schema
-      // before proceeding. The "Continue" button advances to Stage 2.
+      // Apply schema result — populates schema, characteristics, compliance, relationships
+      // Stay on Stage 1 so the user can review and edit the inferred schema.
+      applyInferResult(result, 1);
     } catch (e) {
       setError(e.message);
     } finally {

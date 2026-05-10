@@ -3,6 +3,42 @@ import { useAppStore } from "../../store/appStore.js";
 import { api } from "../../api/client.js";
 import { relativeTime } from "../../utils/relativeTime.js";
 
+// ── Static demo starter cards ──────────────────────────────────────────────
+const DEMO_STARTERS = [
+  {
+    id: "demo-ecommerce",
+    title: "E-Commerce Orders",
+    description: "Customers → Orders → Order Items. PCI, PII, GDPR compliance demo.",
+    emoji: "🛒",
+    contextKeyword: "ecommerce orders checkout payment customer",
+    frameworks: ["PCI", "PII", "GDPR"],
+  },
+  {
+    id: "demo-healthcare",
+    title: "Healthcare Patients",
+    description: "Patient records with diagnoses, prescriptions, and insurance IDs.",
+    emoji: "🏥",
+    contextKeyword: "patient clinical hospital diagnosis HIPAA",
+    frameworks: ["HIPAA", "PII", "GDPR"],
+  },
+  {
+    id: "demo-hr",
+    title: "HR & Payroll",
+    description: "Employee roster with salaries, departments, and tax identifiers.",
+    emoji: "👩‍💼",
+    contextKeyword: "employee payroll salary HR department SOX",
+    frameworks: ["SOX", "PII", "GDPR"],
+  },
+  {
+    id: "demo-students",
+    title: "Student Records",
+    description: "Enrolment, GPA, and financial aid protected under FERPA.",
+    emoji: "🎓",
+    contextKeyword: "student gpa academic enrollment FERPA",
+    frameworks: ["FERPA", "PII", "GDPR"],
+  },
+];
+
 const FW_COLORS = {
   PII:   "bg-red-100 text-red-700",
   PCI:   "bg-orange-100 text-orange-700",
@@ -38,13 +74,14 @@ function FrameworkBadges({ complianceJson }) {
 }
 
 export default function ProfilePicker() {
-  const { setShowProfilePicker, loadProfile } = useAppStore();
+  const { setShowProfilePicker, loadProfile, applyInferResult } = useAppStore();
   const [profiles, setProfiles] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [loadingId, setLoadingId] = useState(null);
+  const [demoLoadingId, setDemoLoadingId] = useState(null);
 
   const refresh = async () => {
     setLoading(true);
@@ -65,6 +102,19 @@ export default function ProfilePicker() {
   };
 
   useEffect(() => { refresh(); }, []);
+
+  const handleDemoLoad = async (starter) => {
+    setDemoLoadingId(starter.id);
+    try {
+      const result = await api.inferSchema([], starter.contextKeyword, null);
+      applyInferResult(result, 1);
+      setShowProfilePicker(false);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setDemoLoadingId(null);
+    }
+  };
 
   const handleLoad = async (id) => {
     setLoadingId(id);
@@ -116,6 +166,44 @@ export default function ProfilePicker() {
       </div>
 
       <div className="flex-1 px-8 py-6 max-w-6xl mx-auto w-full">
+
+        {/* ── Demo starter templates ── */}
+        <div className="mb-8">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+            Start with a template
+          </h2>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {DEMO_STARTERS.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => handleDemoLoad(s)}
+                disabled={demoLoadingId === s.id}
+                className="relative text-left bg-white border border-gray-200 rounded-xl p-4 hover:border-indigo-400 hover:shadow-sm transition-all disabled:opacity-60 group"
+              >
+                <div className="text-2xl mb-2">{s.emoji}</div>
+                <div className="font-medium text-gray-900 text-sm">{s.title}</div>
+                <div className="text-xs text-gray-400 mt-1 leading-snug">{s.description}</div>
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {s.frameworks.map((fw) => (
+                    <span key={fw} className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${FW_COLORS[fw] || "bg-gray-100 text-gray-600"}`}>
+                      {fw}
+                    </span>
+                  ))}
+                </div>
+                {demoLoadingId === s.id && (
+                  <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/80 text-sm text-indigo-600 font-medium">
+                    Loading…
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Saved profiles ── */}
+        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+          Saved profiles
+        </h2>
         {/* Search + count */}
         <div className="flex items-center justify-between mb-4 gap-4">
           <div className="relative flex-1 max-w-sm">
