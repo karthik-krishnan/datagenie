@@ -125,9 +125,14 @@ async def infer(
             llm_warning = ("Azure OpenAI deployment name is not configured. "
                            "Open Settings and add 'deployment' to Extra Config.")
 
-    # --- Demo mode: skip all parsing, return a pre-built template ---
+    # --- Demo mode with no files: try rule-based inference first, fall back to template ---
     if isinstance(llm_provider_obj, DemoProvider) and not parsed_files:
         from services.demo_templates import get_demo_schema
+        from services.schema_inferrer import _infer_schema_from_context
+        # If the user typed something meaningful, use rule-based inference on it
+        if context_text and context_text.strip():
+            return _infer_schema_from_context(context_text)
+        # Nothing typed — return the showcase demo template
         return get_demo_schema(context_text)
 
     # --- Detect domain frameworks from the context text first ---
