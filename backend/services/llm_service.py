@@ -94,9 +94,18 @@ class OpenAIProvider(LLMProvider):
 
 
 class AzureOpenAIProvider(LLMProvider):
-    def __init__(self, api_key: str, endpoint: str, deployment: str, api_version: str = "2024-02-15-preview"):
+    def __init__(self, api_key: str, endpoint: str, deployment: str, api_version: str = "2024-10-21"):
         self.api_key = api_key
-        self.endpoint = endpoint.rstrip("/") if endpoint else ""
+        # Normalise endpoint: ensure https://, strip trailing slash and any path suffix.
+        # The AzureOpenAI client appends /openai/deployments/... itself — if the user
+        # pastes a full URL with that path already included it causes a double-append.
+        ep = (endpoint or "").strip().rstrip("/")
+        if ep and not ep.startswith("http"):
+            ep = "https://" + ep
+        # Strip any /openai/... path — keep only the scheme + host
+        from urllib.parse import urlparse
+        parsed = urlparse(ep)
+        self.endpoint = f"{parsed.scheme}://{parsed.netloc}" if parsed.netloc else ep
         self.deployment = deployment
         self.api_version = api_version
 
@@ -113,7 +122,8 @@ class AzureOpenAIProvider(LLMProvider):
     def generate(self, prompt: str, system_prompt: str = "") -> str:
         if not self.endpoint:
             return json.dumps({"error": "Azure OpenAI endpoint is not configured. "
-                                        "Set 'endpoint' in Settings → Extra Config."})
+                                        "Set 'endpoint' in Settings → Extra Config "
+                                        "(e.g. https://your-resource.openai.azure.com)."})
         if not self.deployment:
             return json.dumps({"error": "Azure deployment name is not configured. "
                                         "Set 'deployment' in Settings → Extra Config."})
@@ -134,7 +144,19 @@ class AzureOpenAIProvider(LLMProvider):
             )
             return resp.choices[0].message.content or ""
         except Exception as e:
-            return json.dumps({"error": str(e)})
+            # Surface the root cause — the generic "Connection error." from httpx
+            # hides the real problem (wrong endpoint host, auth failure, etc.)
+            cause = getattr(e, '__cause__', None) or getattr(e, '__context__', None)
+            detail = str(cause) if cause else str(e)
+            # Flag likely endpoint mistakes for a clearer message
+            if "connection" in detail.lower() or "connect" in detail.lower():
+                detail = (
+                    f"Could not connect to Azure endpoint '{self.endpoint}'. "
+                    f"Check the endpoint URL format (should be "
+                    f"https://your-resource.openai.azure.com) and that your "
+                    f"Azure resource is accessible. Raw error: {detail}"
+                )
+            return json.dumps({"error": detail})
 
 
 class GoogleProvider(LLMProvider):
