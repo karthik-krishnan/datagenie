@@ -7,7 +7,7 @@ export const useAppStore = create((set, get) => ({
   uploadedFiles: [],
   contextText: "",
   inferredSchema: null,
-  characteristics: { volume: 100, distributions: {}, temporal: {}, quickMode: false },
+  characteristics: { volume: 100, distributions: {}, temporal: {}, quickMode: false, per_parent_counts: {} },
   complianceRules: {},
   selectedFrameworks: [],   // frameworks the user confirmed apply to their dataset
   relationships: [],
@@ -86,7 +86,7 @@ export const useAppStore = create((set, get) => ({
       uploadedFiles: [],
       contextText: "",
       inferredSchema: null,
-      characteristics: { volume: 100, distributions: {}, temporal: {}, quickMode: false },
+      characteristics: { volume: 100, distributions: {}, temporal: {}, quickMode: false, per_parent_counts: {} },
       complianceRules: {},
       selectedFrameworks: [],
       relationships: [],

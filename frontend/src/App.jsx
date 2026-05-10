@@ -19,6 +19,61 @@ import ProfileBanner from "./components/Profiles/ProfileBanner.jsx";
 import SaveProfileModal from "./components/Profiles/SaveProfileModal.jsx";
 import UnderstandingSummary from "./components/Stage2_Characteristics/UnderstandingSummary.jsx";
 
+/**
+ * Given a root volume, the relationship graph, and per-parent counts,
+ * compute the absolute row count for every table.
+ *
+ * Returned object: { [tableName]: number }
+ * Only includes tables that differ from the base `volume` — so the backend
+ * applies its own default (3× per level) for any table not listed.
+ */
+function computePerTableVolumes(relationships, volume, perParentCounts) {
+  if (!relationships || relationships.length === 0) return {};
+
+  const manyToOne = relationships.filter(
+    (r) => r.cardinality === "many_to_one" || !r.cardinality
+  );
+  if (manyToOne.length === 0) return {};
+
+  // Build parent→children map
+  const childrenOf = {}; // parent → [{child, rel}]
+  const parentOf = {};   // child → parent
+  for (const r of manyToOne) {
+    if (!childrenOf[r.target_table]) childrenOf[r.target_table] = [];
+    childrenOf[r.target_table].push(r.source_table);
+    parentOf[r.source_table] = r.target_table;
+  }
+
+  // Root tables = not a child in any many_to_one
+  const childSet = new Set(manyToOne.map((r) => r.source_table));
+  const allTableNames = [
+    ...new Set([
+      ...manyToOne.map((r) => r.source_table),
+      ...manyToOne.map((r) => r.target_table),
+    ]),
+  ];
+  const roots = allTableNames.filter((t) => !childSet.has(t));
+
+  // BFS to compute absolute volumes
+  const volumes = {};
+  const queue = roots.map((r) => ({ table: r, vol: volume }));
+  while (queue.length) {
+    const { table, vol } = queue.shift();
+    volumes[table] = vol;
+    for (const child of childrenOf[table] || []) {
+      const countPerParent = perParentCounts[child] || 3;
+      queue.push({ table: child, vol: vol * countPerParent });
+    }
+  }
+
+  // Only return non-root overrides (root tables use `volume` directly)
+  const overrides = {};
+  for (const [t, v] of Object.entries(volumes)) {
+    if (!roots.includes(t)) overrides[t] = v;
+  }
+  return overrides;
+}
+
 export default function App() {
   const {
     currentStage, setStage,
@@ -142,9 +197,12 @@ export default function App() {
     setError(null);
     setLoading(true);
     try {
+      const perTableVols = computePerTableVolumes(
+        relationships, characteristics.volume || 100, characteristics.per_parent_counts || {}
+      );
       const payload = {
         schema: inferredSchema,
-        characteristics,
+        characteristics: { ...characteristics, per_table_volumes: perTableVols },
         compliance_rules: complianceRules,
         relationships,
         volume: characteristics.volume || 100,
@@ -165,9 +223,12 @@ export default function App() {
     setError(null);
     setLoading(true);
     try {
+      const perTableVols = computePerTableVolumes(
+        relationships, characteristics.volume || 100, characteristics.per_parent_counts || {}
+      );
       const payload = {
         schema: inferredSchema,
-        characteristics,
+        characteristics: { ...characteristics, per_table_volumes: perTableVols },
         compliance_rules: complianceRules,
         relationships,
         volume: characteristics.volume || 100,
@@ -365,8 +426,18 @@ export default function App() {
               <VolumeInput
                 value={characteristics.volume ?? ""}
                 onChange={(v) => setCharacteristics({ volume: v })}
-                hasRelationships={relationships.length > 0}
                 fromContext={!!inferredSchema?.extracted?.volume}
+                relationships={relationships}
+                schema={inferredSchema}
+                perParentCounts={characteristics.per_parent_counts || {}}
+                onChildCountChange={(childTable, count) =>
+                  setCharacteristics({
+                    per_parent_counts: {
+                      ...(characteristics.per_parent_counts || {}),
+                      [childTable]: count,
+                    },
+                  })
+                }
               />
               <div className="border border-gray-200 rounded-xl p-4 space-y-3">
                 <div className="flex items-center justify-between">
