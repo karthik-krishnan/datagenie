@@ -1,4 +1,4 @@
-# 🪄 DataGenie — AI-Powered Test Data Generation
+# 🪄 DataGenie — AI Assisted Intelligent Test Data Generator
 
 DataGenie is a full-stack application that generates realistic, compliant synthetic test data from natural language descriptions or uploaded sample files. No real data ever leaves your environment.
 
