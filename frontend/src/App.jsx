@@ -36,9 +36,10 @@ export default function App() {
     error, setError,
     showSettings, setShowSettings,
     llmSettings,
-    showProfilePicker,
+    showProfilePicker, setShowProfilePicker,
     profileId,
     setShowSaveProfileModal,
+    reset,
   } = useAppStore();
 
   useEffect(() => {
@@ -186,15 +187,23 @@ export default function App() {
   return (
     <div className="min-h-screen bg-white text-gray-900 flex flex-col">
       <header className="border-b border-gray-200 px-6 py-3 flex items-center justify-between bg-white">
-        <h1 className="text-lg font-semibold flex items-center gap-2">
+        <button
+          onClick={() => { reset(); setShowProfilePicker(true); }}
+          className="text-lg font-semibold flex items-center gap-2 hover:text-indigo-600 transition-colors"
+          title="Back to home"
+        >
           <span>🪄</span> DataGenie
-        </h1>
+        </button>
         <button
           onClick={() => setShowSettings(true)}
-          className="text-gray-500 hover:text-indigo-600 text-xl"
-          title="Settings"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 border border-gray-200 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+          title="LLM Provider Settings"
         >
-          ⚙️
+          <span>⚙️</span>
+          <span>Settings</span>
+          {llmSettings?.provider && llmSettings.provider !== "demo" && (
+            <span className="ml-0.5 w-2 h-2 rounded-full bg-green-400 inline-block" title={`Connected: ${llmSettings.provider}`} />
+          )}
         </button>
       </header>
 

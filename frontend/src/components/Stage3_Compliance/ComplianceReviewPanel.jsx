@@ -153,8 +153,11 @@ export default function ComplianceReviewPanel({
       const overlaps = selectedFrameworks.some((f) => fieldFws.includes(f));
       const isCustomInContext = !!complianceRules[c.name]?.custom_rule;
       const hasNonTrivialDefault = compliance.default_action && compliance.default_action !== "fake_realistic";
+      // Also check the action already stored in complianceRules (e.g. from demo templates or saved profiles)
+      const storedAction = complianceRules[c.name]?.action;
+      const hasNonTrivialStoredAction = !!(storedAction && storedAction !== "fake_realistic");
 
-      if (overlaps && (isCustomInContext || hasNonTrivialDefault)) {
+      if (overlaps && (isCustomInContext || hasNonTrivialDefault || hasNonTrivialStoredAction)) {
         allSensitiveFields.push({ table: t.table_name, col: c, compliance });
       } else if (overlaps) {
         autoFields.push({ table: t.table_name, col: c, compliance });

@@ -2,6 +2,9 @@
 Pre-built schema templates for Demo mode.
 No parsing, no regex, no LLM — just realistic canned data that demonstrates
 all features of the app (compliance, distributions, relationships, etc.)
+
+Each template deliberately includes 2–3 fields per compliance framework so
+that the Compliance stage has meaningful decisions to show the user.
 """
 
 from typing import Any, Dict
@@ -11,33 +14,39 @@ from typing import Any, Dict
 TEMPLATES: Dict[str, Dict[str, Any]] = {
 
     "users": {
-        "keywords": ["user", "person", "people", "customer", "member", "contact", "employee", "staff", "worker"],
+        "keywords": ["user", "person", "people", "customer", "member", "contact"],
         "entity_type": "users",
         "volume": 100,
         "table_name": "users",
         "columns": [
-            {"name": "user_id",    "type": "integer", "sample_values": ["1001", "1002", "1003"]},
-            {"name": "first_name", "type": "string",  "sample_values": ["James", "Maria", "Priya"]},
-            {"name": "last_name",  "type": "string",  "sample_values": ["Carter", "Lopez", "Sharma"]},
-            {"name": "email",      "type": "email",   "sample_values": ["james.carter@example.com", "m.lopez@mail.com"]},
-            {"name": "phone",      "type": "phone",   "sample_values": ["+1-555-0142", "+1-555-0287"]},
-            {"name": "gender",     "type": "enum",    "sample_values": ["Male", "Female", "Non-binary"],
+            {"name": "user_id",       "type": "integer", "sample_values": ["1001", "1002", "1003"]},
+            {"name": "first_name",    "type": "string",  "sample_values": ["James", "Maria", "Priya"]},
+            {"name": "last_name",     "type": "string",  "sample_values": ["Carter", "Lopez", "Sharma"]},
+            {"name": "email",         "type": "email",   "sample_values": ["james.carter@example.com", "m.lopez@mail.com"]},
+            {"name": "phone",         "type": "phone",   "sample_values": ["+1-555-0142", "+1-555-0287"]},
+            {"name": "gender",        "type": "enum",    "sample_values": ["Male", "Female", "Non-binary"],
              "enum_values": ["Male", "Female", "Non-binary", "Not specified"]},
-            {"name": "age",        "type": "integer", "sample_values": ["28", "35", "42"]},
-            {"name": "city",       "type": "string",  "sample_values": ["Austin", "Chicago", "San Jose"]},
-            {"name": "country",    "type": "string",  "sample_values": ["US", "US", "IN"]},
-            {"name": "ssn",        "type": "string",  "sample_values": ["***-**-4821", "***-**-3374"]},
-            {"name": "created_at", "type": "date",    "sample_values": ["2023-06-12", "2024-01-08"]},
+            {"name": "dob",           "type": "date",    "sample_values": ["1990-04-15", "1985-11-22"]},
+            {"name": "ssn",           "type": "string",  "sample_values": ["***-**-4821", "***-**-3374"]},
+            {"name": "credit_card",   "type": "string",  "sample_values": ["****-****-****-4821", "****-****-****-3374"]},
+            {"name": "ip_address",    "type": "string",  "sample_values": ["192.168.1.1", "10.0.0.42"]},
+            {"name": "city",          "type": "string",  "sample_values": ["Austin", "Chicago", "San Jose"]},
+            {"name": "country",       "type": "string",  "sample_values": ["US", "US", "IN"]},
+            {"name": "created_at",    "type": "date",    "sample_values": ["2023-06-12", "2024-01-08"]},
         ],
         "distributions": {
             "gender": {"Male": 60, "Female": 30, "Non-binary": 7, "Not specified": 3},
         },
+        # 2–3 non-trivial actions per framework so compliance stage shows real decisions
         "compliance_rules": {
-            "ssn":   {"action": "mask",         "custom_rule": None, "frameworks": ["PII", "HIPAA"]},
-            "email": {"action": "fake_realistic","custom_rule": None, "frameworks": ["PII", "GDPR"]},
-            "phone": {"action": "fake_realistic","custom_rule": None, "frameworks": ["PII"]},
+            "ssn":         {"action": "mask",              "custom_rule": None, "frameworks": ["PII", "HIPAA"]},
+            "dob":         {"action": "format_preserving", "custom_rule": None, "frameworks": ["PII", "GDPR"]},
+            "credit_card": {"action": "format_preserving", "custom_rule": None, "frameworks": ["PCI"]},
+            "ip_address":  {"action": "mask",              "custom_rule": None, "frameworks": ["PII", "GDPR"]},
+            "email":       {"action": "fake_realistic",    "custom_rule": None, "frameworks": ["PII", "GDPR"]},
+            "phone":       {"action": "fake_realistic",    "custom_rule": None, "frameworks": ["PII"]},
         },
-        "frameworks_detected": ["PII", "GDPR"],
+        "frameworks_detected": ["PII", "GDPR", "PCI"],
         "sensitive_detected": True,
     },
 
@@ -47,35 +56,40 @@ TEMPLATES: Dict[str, Dict[str, Any]] = {
         "volume": 50,
         "table_name": "patients",
         "columns": [
-            {"name": "patient_id",   "type": "string",  "sample_values": ["PAT-00421", "PAT-00422"]},
-            {"name": "first_name",   "type": "string",  "sample_values": ["Dorothy", "Marcus"]},
-            {"name": "last_name",    "type": "string",  "sample_values": ["Nguyen", "Williams"]},
-            {"name": "dob",          "type": "date",    "sample_values": ["1978-03-15", "1965-11-02"]},
-            {"name": "gender",       "type": "enum",    "sample_values": ["Female", "Male"],
+            {"name": "patient_id",    "type": "string",  "sample_values": ["PAT-00421", "PAT-00422"]},
+            {"name": "first_name",    "type": "string",  "sample_values": ["Dorothy", "Marcus"]},
+            {"name": "last_name",     "type": "string",  "sample_values": ["Nguyen", "Williams"]},
+            {"name": "dob",           "type": "date",    "sample_values": ["1978-03-15", "1965-11-02"]},
+            {"name": "gender",        "type": "enum",    "sample_values": ["Female", "Male"],
              "enum_values": ["Male", "Female", "Non-binary", "Not specified"]},
-            {"name": "ssn",          "type": "string",  "sample_values": ["***-**-9182", "***-**-4430"]},
-            {"name": "mrn",          "type": "string",  "sample_values": ["MRN-884421", "MRN-884422"]},
-            {"name": "diagnosis",    "type": "string",  "sample_values": ["Type 2 Diabetes", "Hypertension"]},
-            {"name": "physician",    "type": "string",  "sample_values": ["Dr. Sandra Lee", "Dr. Raj Patel"]},
-            {"name": "admission_date","type": "date",   "sample_values": ["2024-03-10", "2024-04-22"]},
-            {"name": "insurance_id", "type": "string",  "sample_values": ["INS-7764210", "INS-3382104"]},
+            {"name": "ssn",           "type": "string",  "sample_values": ["***-**-9182", "***-**-4430"]},
+            {"name": "mrn",           "type": "string",  "sample_values": ["MRN-884421", "MRN-884422"]},
+            {"name": "diagnosis",     "type": "string",  "sample_values": ["Type 2 Diabetes", "Hypertension"]},
+            {"name": "prescription",  "type": "string",  "sample_values": ["Metformin 500mg", "Lisinopril 10mg"]},
+            {"name": "physician",     "type": "string",  "sample_values": ["Dr. Sandra Lee", "Dr. Raj Patel"]},
+            {"name": "admission_date","type": "date",    "sample_values": ["2024-03-10", "2024-04-22"]},
+            {"name": "insurance_id",  "type": "string",  "sample_values": ["INS-7764210", "INS-3382104"]},
+            {"name": "email",         "type": "email",   "sample_values": ["d.nguyen@email.com"]},
         ],
         "distributions": {
             "gender": {"Male": 48, "Female": 48, "Non-binary": 3, "Not specified": 1},
         },
         "compliance_rules": {
-            "ssn":        {"action": "mask",          "custom_rule": None, "frameworks": ["PII", "HIPAA"]},
-            "mrn":        {"action": "format_preserving", "custom_rule": None, "frameworks": ["HIPAA"]},
-            "diagnosis":  {"action": "fake_realistic","custom_rule": None, "frameworks": ["HIPAA"]},
-            "insurance_id":{"action": "format_preserving","custom_rule": None, "frameworks": ["HIPAA", "PII"]},
-            "dob":        {"action": "fake_realistic","custom_rule": None, "frameworks": ["PII", "GDPR", "HIPAA"]},
+            "ssn":         {"action": "mask",              "custom_rule": None, "frameworks": ["PII", "HIPAA"]},
+            "mrn":         {"action": "format_preserving", "custom_rule": None, "frameworks": ["HIPAA"]},
+            "patient_id":  {"action": "format_preserving", "custom_rule": None, "frameworks": ["HIPAA", "PII"]},
+            "insurance_id":{"action": "format_preserving", "custom_rule": None, "frameworks": ["HIPAA", "PII"]},
+            "dob":         {"action": "format_preserving", "custom_rule": None, "frameworks": ["PII", "GDPR", "HIPAA"]},
+            "diagnosis":   {"action": "fake_realistic",    "custom_rule": None, "frameworks": ["HIPAA"]},
+            "prescription":{"action": "fake_realistic",    "custom_rule": None, "frameworks": ["HIPAA"]},
+            "email":       {"action": "fake_realistic",    "custom_rule": None, "frameworks": ["PII", "GDPR"]},
         },
         "frameworks_detected": ["PII", "HIPAA", "GDPR"],
         "sensitive_detected": True,
     },
 
     "orders": {
-        "keywords": ["order", "purchase", "transaction", "invoice", "sale", "product", "ecommerce", "e-commerce", "checkout"],
+        "keywords": ["order", "purchase", "transaction", "invoice", "sale", "product", "ecommerce", "e-commerce", "checkout", "payment"],
         "entity_type": "orders",
         "volume": 200,
         "table_name": "orders",
@@ -90,14 +104,21 @@ TEMPLATES: Dict[str, Dict[str, Any]] = {
              "enum_values": ["Pending", "Processing", "Shipped", "Delivered", "Cancelled"]},
             {"name": "shipping_address", "type": "string",  "sample_values": ["123 Maple St, Austin TX"]},
             {"name": "credit_card",      "type": "string",  "sample_values": ["****-****-****-4821"]},
+            {"name": "cvv",              "type": "string",  "sample_values": ["***"]},
+            {"name": "card_expiry",      "type": "string",  "sample_values": ["12/26", "08/27"]},
+            {"name": "billing_address",  "type": "string",  "sample_values": ["123 Maple St, Austin TX"]},
             {"name": "order_date",       "type": "date",    "sample_values": ["2024-05-01", "2024-05-03"]},
         ],
         "distributions": {
             "status": {"Pending": 15, "Processing": 20, "Shipped": 35, "Delivered": 25, "Cancelled": 5},
         },
         "compliance_rules": {
-            "credit_card":   {"action": "format_preserving", "custom_rule": None, "frameworks": ["PCI"]},
-            "customer_email":{"action": "fake_realistic",    "custom_rule": None, "frameworks": ["PII", "GDPR"]},
+            "credit_card":    {"action": "format_preserving", "custom_rule": None, "frameworks": ["PCI"]},
+            "cvv":            {"action": "redact",             "custom_rule": None, "frameworks": ["PCI"]},
+            "card_expiry":    {"action": "fake_realistic",     "custom_rule": None, "frameworks": ["PCI"]},
+            "customer_email": {"action": "fake_realistic",     "custom_rule": None, "frameworks": ["PII", "GDPR"]},
+            "shipping_address":{"action": "fake_realistic",    "custom_rule": None, "frameworks": ["PII", "GDPR"]},
+            "billing_address": {"action": "fake_realistic",    "custom_rule": None, "frameworks": ["PCI", "PII"]},
         },
         "frameworks_detected": ["PCI", "PII", "GDPR"],
         "sensitive_detected": True,
@@ -116,18 +137,23 @@ TEMPLATES: Dict[str, Dict[str, Any]] = {
             {"name": "department",  "type": "enum",    "sample_values": ["Engineering", "Sales", "HR"],
              "enum_values": ["Engineering", "Sales", "HR", "Finance", "Marketing", "Operations"]},
             {"name": "salary",      "type": "float",   "sample_values": ["85000", "92000", "74000"]},
+            {"name": "bonus",       "type": "float",   "sample_values": ["8000", "12000", "5000"]},
             {"name": "hire_date",   "type": "date",    "sample_values": ["2021-03-15", "2019-08-01"]},
             {"name": "manager",     "type": "string",  "sample_values": ["Sarah Kim", "David Osei"]},
             {"name": "phone",       "type": "phone",   "sample_values": ["+1-555-0199"]},
             {"name": "ssn",         "type": "string",  "sample_values": ["***-**-6612"]},
+            {"name": "tax_id",      "type": "string",  "sample_values": ["EIN-45-1234567"]},
         ],
         "distributions": {
             "department": {"Engineering": 35, "Sales": 25, "HR": 10, "Finance": 15, "Marketing": 10, "Operations": 5},
         },
         "compliance_rules": {
-            "ssn":    {"action": "mask", "custom_rule": None, "frameworks": ["PII"]},
-            "salary": {"action": "mask", "custom_rule": None, "frameworks": ["SOX", "PII"]},
-            "email":  {"action": "fake_realistic", "custom_rule": None, "frameworks": ["PII", "GDPR"]},
+            "ssn":     {"action": "mask",              "custom_rule": None, "frameworks": ["PII"]},
+            "salary":  {"action": "mask",              "custom_rule": None, "frameworks": ["SOX", "PII"]},
+            "bonus":   {"action": "mask",              "custom_rule": None, "frameworks": ["SOX", "PII"]},
+            "tax_id":  {"action": "format_preserving", "custom_rule": None, "frameworks": ["SOX", "PII"]},
+            "email":   {"action": "fake_realistic",    "custom_rule": None, "frameworks": ["PII", "GDPR"]},
+            "phone":   {"action": "fake_realistic",    "custom_rule": None, "frameworks": ["PII"]},
         },
         "frameworks_detected": ["PII", "SOX", "GDPR"],
         "sensitive_detected": True,
@@ -144,21 +170,26 @@ TEMPLATES: Dict[str, Dict[str, Any]] = {
             {"name": "last_name",    "type": "string",  "sample_values": ["Zhang", "Brooks"]},
             {"name": "email",        "type": "email",   "sample_values": ["mzhang@university.edu"]},
             {"name": "gpa",          "type": "float",   "sample_values": ["3.7", "2.9", "3.4"]},
+            {"name": "grade",        "type": "string",  "sample_values": ["A", "B+", "A-"]},
             {"name": "enrollment",   "type": "enum",    "sample_values": ["Full-time", "Part-time"],
              "enum_values": ["Full-time", "Part-time", "Online"]},
             {"name": "major",        "type": "string",  "sample_values": ["Computer Science", "Biology"]},
             {"name": "year",         "type": "enum",    "sample_values": ["Sophomore", "Junior"],
              "enum_values": ["Freshman", "Sophomore", "Junior", "Senior", "Graduate"]},
             {"name": "dob",          "type": "date",    "sample_values": ["2001-07-14", "2000-11-30"]},
+            {"name": "financial_aid","type": "float",   "sample_values": ["5000", "8500", "0"]},
         ],
         "distributions": {
             "enrollment": {"Full-time": 70, "Part-time": 20, "Online": 10},
             "year": {"Freshman": 25, "Sophomore": 25, "Junior": 20, "Senior": 20, "Graduate": 10},
         },
         "compliance_rules": {
-            "student_id": {"action": "format_preserving", "custom_rule": None, "frameworks": ["FERPA", "PII"]},
-            "gpa":        {"action": "fake_realistic",    "custom_rule": None, "frameworks": ["FERPA"]},
-            "email":      {"action": "fake_realistic",    "custom_rule": None, "frameworks": ["PII", "GDPR"]},
+            "student_id":   {"action": "format_preserving", "custom_rule": None, "frameworks": ["FERPA", "PII"]},
+            "gpa":          {"action": "fake_realistic",    "custom_rule": None, "frameworks": ["FERPA"]},
+            "grade":        {"action": "fake_realistic",    "custom_rule": None, "frameworks": ["FERPA"]},
+            "financial_aid":{"action": "mask",              "custom_rule": None, "frameworks": ["FERPA", "SOX"]},
+            "dob":          {"action": "format_preserving", "custom_rule": None, "frameworks": ["PII", "GDPR"]},
+            "email":        {"action": "fake_realistic",    "custom_rule": None, "frameworks": ["PII", "GDPR"]},
         },
         "frameworks_detected": ["PII", "FERPA", "GDPR"],
         "sensitive_detected": True,
@@ -171,7 +202,6 @@ DEFAULT_TEMPLATE = "users"
 def pick_template(context_text: str) -> str:
     """Pick the best template based on simple keyword presence in the context."""
     text = context_text.lower() if context_text else ""
-    # Score each template by how many of its keywords appear
     scores = {}
     for key, tmpl in TEMPLATES.items():
         scores[key] = sum(1 for kw in tmpl["keywords"] if kw in text)
@@ -193,6 +223,23 @@ def get_demo_schema(context_text: str = "") -> Dict[str, Any]:
     cols = []
     for c in tmpl["columns"]:
         compliance = detect_compliance(c["name"], c.get("sample_values", []))
+        # For any column whose compliance_rule specifies a non-trivial action,
+        # ensure the column's pii.default_action reflects that so the UI shows it
+        # in the "needs decision" bucket even if detect_compliance says fake_realistic.
+        stored_rule = tmpl["compliance_rules"].get(c["name"])
+        if stored_rule and stored_rule.get("action") not in (None, "fake_realistic"):
+            if compliance["default_action"] == "fake_realistic" or not compliance["is_sensitive"]:
+                compliance = {**compliance, "default_action": stored_rule["action"]}
+                if not compliance["is_sensitive"]:
+                    compliance = {
+                        **compliance,
+                        "is_sensitive": True,
+                        "frameworks": stored_rule.get("frameworks", ["PII"]),
+                        "field_type": c["name"],
+                        "recommendations": {},
+                        "confidence": 0.9,
+                    }
+
         cols.append({
             "name": c["name"],
             "type": c["type"],
