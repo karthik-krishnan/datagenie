@@ -139,7 +139,6 @@ export default function ComplianceReviewPanel({
   };
 
   const knownIds     = ALL_FRAMEWORKS.map((f) => f.id);
-  const customFws    = selectedFrameworks.filter((f) => !knownIds.includes(f));
   const noneSelected = selectedFrameworks.length === 0;
 
   // ── Step 2: Filtered field handling ─────────────────────────────────────
@@ -259,22 +258,6 @@ export default function ComplianceReviewPanel({
               onToggle={toggleFramework}
             />
           ))}
-        </div>
-
-        {/* Custom / unlisted framework */}
-        <div>
-          <p className="text-xs text-gray-500 mb-2">Other regulation not listed above?</p>
-          <ChipSelector
-            options={[]}
-            value={customFws}
-            onChange={(vals) => {
-              const standardIds = selectedFrameworks.filter((f) => knownIds.includes(f));
-              onFrameworksChange([...standardIds, ...(Array.isArray(vals) ? vals : [vals])]);
-            }}
-            allowCustom
-            multi
-            customPlaceholder="Type regulation name, e.g. PIPEDA, LGPD..."
-          />
         </div>
 
         {/* None apply */}
