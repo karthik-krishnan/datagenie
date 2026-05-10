@@ -95,7 +95,6 @@ FIELD_CATALOG: Dict[str, Dict] = {
     "first_name":       {"frameworks": ["PII", "GDPR"],         "field_type": "person_name",         "default_action": "fake_realistic"},
     "last_name":        {"frameworks": ["PII", "GDPR"],         "field_type": "person_name",         "default_action": "fake_realistic"},
     "full_name":        {"frameworks": ["PII", "GDPR"],         "field_type": "person_name",         "default_action": "fake_realistic"},
-    "_name":            {"frameworks": ["PII"],                  "field_type": "name",                "default_action": "fake_realistic"},
     "email":            {"frameworks": ["PII", "GDPR", "CCPA"], "field_type": "email_address",       "default_action": "fake_realistic"},
     "phone":            {"frameworks": ["PII", "GDPR", "CCPA"], "field_type": "phone_number",        "default_action": "fake_realistic"},
     "mobile":           {"frameworks": ["PII", "GDPR", "CCPA"], "field_type": "phone_number",        "default_action": "fake_realistic"},
