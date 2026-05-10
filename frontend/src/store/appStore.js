@@ -37,7 +37,10 @@ export const useAppStore = create((set, get) => ({
   setInferredSchema: (s) => set({ inferredSchema: s, relationships: s?.relationships || [] }),
   updateSchema: (updater) => set((st) => ({ inferredSchema: updater(st.inferredSchema) })),
   setCharacteristics: (c) => set({ characteristics: { ...get().characteristics, ...c } }),
-  setComplianceRules: (r) => set({ complianceRules: r }),
+  setComplianceRules: (r) =>
+    typeof r === "function"
+      ? set((state) => ({ complianceRules: r(state.complianceRules) }))
+      : set({ complianceRules: r }),
   setSelectedFrameworks: (f) => set({ selectedFrameworks: f }),
   setRelationships: (r) => set({ relationships: r }),
   setOutputConfig: (c) => set({ outputConfig: { ...get().outputConfig, ...c } }),
