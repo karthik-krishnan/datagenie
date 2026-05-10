@@ -41,6 +41,11 @@ export const api = {
     return fetch(`${BASE}/schema/infer`, { method: "POST", body: fd }).then(handle);
   },
 
+  // Returns the built-in demo template for a keyword — never calls an LLM.
+  // Used by ProfilePicker starter cards so they work regardless of LLM config.
+  getDemoSchema: (keyword = "") =>
+    fetch(`${BASE}/schema/demo?keyword=${encodeURIComponent(keyword)}`).then(handle),
+
   // Settings — kept for test connection only; save/load now handled via localStorage
   getSettings: () => fetch(`${BASE}/settings/`).then(handle),
 

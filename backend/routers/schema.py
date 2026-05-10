@@ -278,6 +278,23 @@ async def infer(
 # Normalise a plain-English masking rule → structured MaskingOp
 # Called by the frontend whenever a user types a custom compliance rule.
 # ---------------------------------------------------------------------------
+# Demo template endpoint — always returns the built-in template regardless
+# of the user's LLM settings.  Used by the ProfilePicker starter cards so
+# clicking a card is fast, deterministic, and works even with a real LLM.
+# ---------------------------------------------------------------------------
+
+@router.get("/demo")
+async def get_demo(keyword: str = ""):
+    """
+    GET /api/schema/demo?keyword=<text>
+    Returns the best-matching demo template for the given keyword(s).
+    Never calls any LLM — purely the built-in canned schema.
+    """
+    from services.demo_templates import get_demo_schema
+    return get_demo_schema(keyword)
+
+
+# ---------------------------------------------------------------------------
 class _NormaliseRuleRequest(dict):
     """Thin wrapper — FastAPI reads the JSON body as a plain dict."""
 

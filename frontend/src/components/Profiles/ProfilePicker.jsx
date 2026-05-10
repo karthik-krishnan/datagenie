@@ -106,7 +106,9 @@ export default function ProfilePicker() {
   const handleDemoLoad = async (starter) => {
     setDemoLoadingId(starter.id);
     try {
-      const result = await api.inferSchema([], starter.contextKeyword, null);
+      // Use the dedicated demo endpoint — never calls an LLM, always fast,
+      // works correctly regardless of the user's LLM configuration.
+      const result = await api.getDemoSchema(starter.contextKeyword);
       applyInferResult(result, 1);
       setShowProfilePicker(false);
     } catch (e) {
