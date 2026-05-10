@@ -7,15 +7,30 @@ function validate(r, relationships, currentIndex = -1) {
   if (r.source_table === r.target_table) return "Source and target table must be different.";
   if (!r.source_column) return "Select a source column.";
   if (!r.target_column) return "Select a target column.";
-  const duplicate = relationships.some((rel, i) =>
-    i !== currentIndex &&
-    rel.source_table === r.source_table &&
-    rel.source_column === r.source_column &&
-    rel.target_table === r.target_table &&
-    rel.target_column === r.target_column
+
+  const others = relationships.filter((_, i) => i !== currentIndex);
+
+  // No two relationships between the same pair of tables (in either direction)
+  const tablePairExists = others.some((rel) =>
+    (rel.source_table === r.source_table && rel.target_table === r.target_table) ||
+    (rel.source_table === r.target_table && rel.target_table === r.source_table)
   );
-  if (duplicate) return "This relationship already exists.";
+  if (tablePairExists) return "A relationship between these two tables already exists.";
+
   return null;
+}
+
+// Tables that already have a relationship with sourceTbl (in either direction)
+function occupiedTargets(sourceTbl, relationships, currentIndex = -1) {
+  return new Set(
+    relationships
+      .filter((_, i) => i !== currentIndex)
+      .flatMap((rel) => {
+        if (rel.source_table === sourceTbl) return [rel.target_table];
+        if (rel.target_table === sourceTbl) return [rel.source_table];
+        return [];
+      })
+  );
 }
 
 export default function RelationshipMapper({ schema, relationships, onUpdate }) {
@@ -49,8 +64,11 @@ export default function RelationshipMapper({ schema, relationships, onUpdate }) 
     setAdding(false);
   };
 
-  // Filter target table options to exclude the source table
-  const targetTables = (sourceTbl) => tables.filter((t) => t.table_name !== sourceTbl);
+  // Filter target table options: exclude source table + tables already related to it
+  const targetTables = (sourceTbl, currentIndex = -1) => {
+    const occupied = occupiedTargets(sourceTbl, relationships, currentIndex);
+    return tables.filter((t) => t.table_name !== sourceTbl && !occupied.has(t.table_name));
+  };
 
   return (
     <div className="space-y-4">
@@ -66,7 +84,8 @@ export default function RelationshipMapper({ schema, relationships, onUpdate }) 
             </select>
             <span className="mx-2 text-gray-400">→</span>
             <select value={r.target_table} onChange={(e) => update(i, { target_table: e.target.value, target_column: "" })} className="border border-gray-200 rounded px-2 py-1">
-              {targetTables(r.source_table).map((t) => <option key={t.table_name} value={t.table_name}>{t.table_name}</option>)}
+              {/* Always include the current target so the saved value is visible */}
+              {[...targetTables(r.source_table, i), ...(r.target_table && !targetTables(r.source_table, i).find(t => t.table_name === r.target_table) ? tables.filter(t => t.table_name === r.target_table) : [])].map((t) => <option key={t.table_name} value={t.table_name}>{t.table_name}</option>)}
             </select>
             <span>.</span>
             <select value={r.target_column} onChange={(e) => update(i, { target_column: e.target.value })} className="border border-gray-200 rounded px-2 py-1">
@@ -100,6 +119,7 @@ export default function RelationshipMapper({ schema, relationships, onUpdate }) 
               <option value="">target table</option>
               {targetTables(draft.source_table).map((t) => <option key={t.table_name} value={t.table_name}>{t.table_name}</option>)}
             </select>
+
             <select value={draft.target_column} onChange={(e) => setDraft({ ...draft, target_column: e.target.value })} className="border border-gray-200 rounded px-2 py-1 bg-white">
               <option value="">target column</option>
               {colsFor(draft.target_table).map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
