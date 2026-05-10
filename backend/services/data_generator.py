@@ -136,8 +136,8 @@ def _gen_for_field_type(field_type: str) -> Any:
 
     # Demographic / sensitive categories
     if ft == "demographic":                       return random.choice(["Male", "Female", "Non-binary"])
-    if ft == "sensitive_category":                return "[SYNTHETIC]"
-    if ft == "biometric_data":                    return "[SYNTHETIC-BIO]"
+    if ft == "sensitive_category":                return random.choice(["Prefer not to say", "Undisclosed", "Not specified"])
+    if ft == "biometric_data":                    return fake.bothify("BIO-????-####")
 
     # Payment / PCI
     if ft == "card_number":                       return fake.credit_card_number()
@@ -268,7 +268,7 @@ def _gen_value_for_column(col: Dict[str, Any], compliance_rules: Dict[str, Any])
 
     # --- Enum with explicit values: always honour the schema definition ---
     if ctype == "enum":
-        vals = col.get("enum_values") or ["Option A", "Option B", "Option C"]
+        vals = col.get("enum_values") or ["active", "inactive", "pending"]
         return random.choice(vals)
 
     # --- Name-based heuristics (catch common column names not in compliance catalog) ---
@@ -337,7 +337,7 @@ def _gen_by_type_pattern(col: Dict[str, Any], ctype: str, pattern: str, name: st
         dt = (datetime.utcnow() - timedelta(days=random.randint(0, 730)))
         return _format_date(dt, col.get("date_format"))
     if ctype == "enum":
-        vals = col.get("enum_values") or ["Option A", "Option B", "Option C"]
+        vals = col.get("enum_values") or ["active", "inactive", "pending"]
         return random.choice(vals)
 
     if pattern == "identifier": return random.randint(1000, 99999)
