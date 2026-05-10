@@ -1,6 +1,11 @@
 import { getLLMConfig } from "../utils/llmStorage.js";
 
-const BASE = "/api";
+// In Docker / local dev: relative /api (proxied by nginx → backend container).
+// In static-site deployments (Vercel, Netlify, etc.): set VITE_API_URL to the
+// backend origin, e.g. https://datagenie-zvt6.onrender.com
+const BASE = import.meta.env.VITE_API_URL
+  ? import.meta.env.VITE_API_URL.replace(/\/$/, "") + "/api"
+  : "/api";
 
 async function handle(res) {
   if (!res.ok) {
