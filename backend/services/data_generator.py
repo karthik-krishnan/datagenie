@@ -11,6 +11,89 @@ fake = Faker()
 
 
 # ---------------------------------------------------------------------------
+# Country → cities lookup (real places, city within country is consistent)
+# ---------------------------------------------------------------------------
+COUNTRY_CITIES: Dict[str, List[str]] = {
+    "United States":    ["New York", "Los Angeles", "Chicago", "Houston", "Phoenix",
+                         "Philadelphia", "San Antonio", "San Diego", "Dallas", "San Jose",
+                         "Austin", "Jacksonville", "Fort Worth", "Columbus", "Charlotte"],
+    "United Kingdom":   ["London", "Birmingham", "Manchester", "Leeds", "Glasgow",
+                         "Liverpool", "Bristol", "Edinburgh", "Cardiff", "Sheffield"],
+    "Canada":           ["Toronto", "Montreal", "Vancouver", "Calgary", "Edmonton",
+                         "Ottawa", "Winnipeg", "Quebec City", "Hamilton", "Halifax"],
+    "Australia":        ["Sydney", "Melbourne", "Brisbane", "Perth", "Adelaide",
+                         "Gold Coast", "Canberra", "Newcastle", "Hobart", "Darwin"],
+    "Germany":          ["Berlin", "Hamburg", "Munich", "Cologne", "Frankfurt",
+                         "Stuttgart", "Düsseldorf", "Dortmund", "Essen", "Leipzig"],
+    "France":           ["Paris", "Marseille", "Lyon", "Toulouse", "Nice",
+                         "Nantes", "Strasbourg", "Montpellier", "Bordeaux", "Lille"],
+    "India":            ["Mumbai", "Delhi", "Bangalore", "Hyderabad", "Chennai",
+                         "Kolkata", "Pune", "Ahmedabad", "Jaipur", "Surat"],
+    "China":            ["Beijing", "Shanghai", "Guangzhou", "Shenzhen", "Chengdu",
+                         "Wuhan", "Xi'an", "Hangzhou", "Nanjing", "Tianjin"],
+    "Japan":            ["Tokyo", "Osaka", "Nagoya", "Sapporo", "Fukuoka",
+                         "Kobe", "Kyoto", "Kawasaki", "Saitama", "Hiroshima"],
+    "Brazil":           ["São Paulo", "Rio de Janeiro", "Brasília", "Salvador",
+                         "Fortaleza", "Belo Horizonte", "Manaus", "Curitiba", "Recife"],
+    "Mexico":           ["Mexico City", "Guadalajara", "Monterrey", "Puebla", "Toluca",
+                         "Tijuana", "León", "Juárez", "Zapopan", "Mérida"],
+    "Spain":            ["Madrid", "Barcelona", "Valencia", "Seville", "Zaragoza",
+                         "Málaga", "Murcia", "Palma", "Bilbao", "Alicante"],
+    "Italy":            ["Rome", "Milan", "Naples", "Turin", "Palermo",
+                         "Genoa", "Bologna", "Florence", "Catania", "Venice"],
+    "Netherlands":      ["Amsterdam", "Rotterdam", "The Hague", "Utrecht", "Eindhoven",
+                         "Tilburg", "Groningen", "Almere", "Breda", "Nijmegen"],
+    "Singapore":        ["Singapore"],
+    "South Korea":      ["Seoul", "Busan", "Incheon", "Daegu", "Daejeon",
+                         "Gwangju", "Suwon", "Ulsan", "Changwon", "Seongnam"],
+    "South Africa":     ["Johannesburg", "Cape Town", "Durban", "Pretoria",
+                         "Port Elizabeth", "Bloemfontein", "East London", "Nelspruit"],
+    "Nigeria":          ["Lagos", "Kano", "Ibadan", "Abuja", "Port Harcourt",
+                         "Benin City", "Maiduguri", "Zaria", "Aba", "Jos"],
+    "Argentina":        ["Buenos Aires", "Córdoba", "Rosario", "Mendoza", "Tucumán",
+                         "La Plata", "Mar del Plata", "Salta", "Santa Fe"],
+    "Sweden":           ["Stockholm", "Gothenburg", "Malmö", "Uppsala", "Västerås",
+                         "Örebro", "Linköping", "Helsingborg", "Jönköping"],
+    "Poland":           ["Warsaw", "Kraków", "Łódź", "Wrocław", "Poznań",
+                         "Gdańsk", "Szczecin", "Bydgoszcz", "Lublin", "Katowice"],
+    "Turkey":           ["Istanbul", "Ankara", "İzmir", "Bursa", "Adana",
+                         "Gaziantep", "Konya", "Antalya", "Kayseri", "Mersin"],
+    "Indonesia":        ["Jakarta", "Surabaya", "Bandung", "Medan", "Semarang",
+                         "Makassar", "Palembang", "Tangerang", "Depok", "Bekasi"],
+    "Pakistan":         ["Karachi", "Lahore", "Islamabad", "Faisalabad", "Rawalpindi",
+                         "Multan", "Hyderabad", "Gujranwala", "Peshawar", "Quetta"],
+    "Bangladesh":       ["Dhaka", "Chittagong", "Sylhet", "Rajshahi", "Khulna",
+                         "Comilla", "Mymensingh", "Narayanganj", "Rangpur"],
+    "Russia":           ["Moscow", "Saint Petersburg", "Novosibirsk", "Yekaterinburg",
+                         "Nizhny Novgorod", "Kazan", "Chelyabinsk", "Omsk", "Samara"],
+    "Kenya":            ["Nairobi", "Mombasa", "Kisumu", "Nakuru", "Eldoret",
+                         "Thika", "Malindi", "Kitale", "Kakamega", "Garissa"],
+    "New Zealand":      ["Auckland", "Wellington", "Christchurch", "Hamilton",
+                         "Tauranga", "Dunedin", "Palmerston North", "Napier"],
+    "Ireland":          ["Dublin", "Cork", "Limerick", "Galway", "Waterford",
+                         "Drogheda", "Dundalk", "Swords", "Bray", "Navan"],
+    "Portugal":         ["Lisbon", "Porto", "Amadora", "Braga", "Setúbal",
+                         "Coimbra", "Funchal", "Almada", "Agualva-Cacém"],
+    "Belgium":          ["Brussels", "Antwerp", "Ghent", "Charleroi", "Liège",
+                         "Bruges", "Namur", "Leuven", "Mons", "Mechelen"],
+}
+
+_COUNTRY_LIST = list(COUNTRY_CITIES.keys())
+
+
+def _pick_country() -> str:
+    return random.choice(_COUNTRY_LIST)
+
+
+def _pick_city_for_country(country: str) -> str:
+    cities = COUNTRY_CITIES.get(country)
+    if cities:
+        return random.choice(cities)
+    # Fallback if country isn't in our map
+    return fake.city()
+
+
+# ---------------------------------------------------------------------------
 # Field-type → generator mapping
 # Covers all field_type values emitted by compliance_detector.py
 # ---------------------------------------------------------------------------
@@ -194,8 +277,15 @@ def _gen_value_for_column(col: Dict[str, Any], compliance_rules: Dict[str, Any])
     if "email" in nl:                   return fake.email()
     if "phone" in nl or "mobile" in nl: return fake.phone_number()
     if "zip"   in nl or "postal" in nl: return fake.postcode()
-    if "city"  in nl:                   return fake.city()
-    if "country" in nl:                 return fake.country()
+    if "country" in nl:                 return _pick_country()
+    if "city"  in nl:
+        # If the partial row already has a country, pick a city within it
+        row_ctx = col.get("_row_context") or {}
+        country_val = next(
+            (v for k, v in row_ctx.items() if "country" in k.lower()),
+            None,
+        )
+        return _pick_city_for_country(country_val) if country_val else _pick_city_for_country(_pick_country())
     if "state"   in nl:                 return fake.state()
     if "address" in nl:                 return fake.street_address()
     if "company" in nl:                 return fake.company()
@@ -439,13 +529,25 @@ def generate_data(
                 if isinstance(dist, dict) and dist:
                     precomputed[cname] = _apply_enum_distribution(col, dist, n)
 
+        # Sort columns so location-parent fields (country, state) come before
+        # location-child fields (city) — ensures city can reference country in the row.
+        def _col_order(c: Dict[str, Any]) -> int:
+            nl = c["name"].lower()
+            if "country" in nl: return 0
+            if "state"   in nl: return 1
+            if "city"    in nl: return 2
+            return 3
+
+        cols_ordered = sorted(cols, key=_col_order)
+
         rows: List[Dict[str, Any]] = []
         for i in range(n):
             row: Dict[str, Any] = {}
 
-            for col in cols:
+            for col in cols_ordered:
                 cname = col["name"]
-                col_with_table = {**col, "_table": tname}
+                # Pass partial row as context so city can read the country already set
+                col_with_table = {**col, "_table": tname, "_row_context": row}
 
                 # FK reference — use a parent PK value
                 fk = fk_map.get(tname, {}).get(cname)
