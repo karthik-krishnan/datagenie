@@ -253,3 +253,100 @@ class TestMultipleFiles:
         ctx = "E-commerce dataset with PCI compliance for orders"
         schema = infer_schema([u_pf, o_pf], ctx)
         assert len(schema["tables"]) == 2
+
+
+# ─── Multi-table text-only context (new feature) ─────────────────────────────
+
+MULTI_TABLE_CTX = """\
+E-commerce platform data for load testing our checkout pipeline.
+
+We need 4 related datasets:
+
+1. customers — id, first_name, last_name, email, phone, date_of_birth, loyalty_tier, is_active, created_at
+2. addresses — id, customer_id, street, city, state, zip, country, is_default
+3. orders — id, customer_id, status, total_amount, created_at, shipped_at
+4. order_items — id, order_id, product_name, sku, quantity, unit_price, line_total
+
+Distribution: 50% Gold, 30% Silver, 20% Bronze. 80% active.
+Generate 200 rows per table.
+"""
+
+
+class TestMultiTableTextContext:
+
+    def test_four_tables_detected_from_numbered_list(self):
+        schema = infer_schema([], MULTI_TABLE_CTX)
+        names = [t["table_name"] for t in schema["tables"]]
+        assert set(names) == {"customers", "addresses", "orders", "order_items"}, (
+            f"Expected 4 tables, got: {names}"
+        )
+
+    def test_each_table_has_correct_columns(self):
+        schema = infer_schema([], MULTI_TABLE_CTX)
+        tmap = {t["table_name"]: t for t in schema["tables"]}
+
+        c_cols = {c["name"] for c in tmap["customers"]["columns"]}
+        assert "email" in c_cols
+        assert "loyalty_tier" in c_cols
+
+        o_cols = {c["name"] for c in tmap["orders"]["columns"]}
+        assert "customer_id" in o_cols
+        assert "total_amount" in o_cols
+
+        i_cols = {c["name"] for c in tmap["order_items"]["columns"]}
+        assert "order_id" in i_cols
+        assert "unit_price" in i_cols
+
+    def test_fk_relationships_auto_detected(self):
+        schema = infer_schema([], MULTI_TABLE_CTX)
+        rels = {
+            (r["source_table"], r["source_column"], r["target_table"])
+            for r in schema["relationships"]
+        }
+        assert ("addresses",   "customer_id", "customers") in rels
+        assert ("orders",      "customer_id", "customers") in rels
+        assert ("order_items", "order_id",    "orders")    in rels
+
+    def test_data_generates_for_all_four_tables(self):
+        """Full round-trip: text → schema → generate_data → 4 tables with FK integrity."""
+        import sys, os; sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+        from services.data_generator import generate_data
+
+        schema = infer_schema([], MULTI_TABLE_CTX)
+        rels   = schema["relationships"]
+        data   = generate_data(schema, {}, {}, rels, volume=10,
+                               llm_settings={"provider": "demo"})
+
+        assert set(data.keys()) == {"customers", "addresses", "orders", "order_items"}
+
+        # FK integrity
+        customer_ids  = {r["id"]  for r in data["customers"]}
+        order_ids     = {r["id"]  for r in data["orders"]}
+
+        for row in data["addresses"]:
+            assert row["customer_id"] in customer_ids
+        for row in data["orders"]:
+            assert row["customer_id"] in customer_ids
+        for row in data["order_items"]:
+            assert row["order_id"] in order_ids
+
+    def test_numbered_list_with_colon_separator(self):
+        ctx = """\
+        1. users: id, name, email, created_at
+        2. posts: id, user_id, title, body, published_at
+        3. comments: id, post_id, user_id, content
+        """
+        schema = infer_schema([], ctx)
+        names = [t["table_name"] for t in schema["tables"]]
+        assert set(names) == {"users", "posts", "comments"}
+
+    def test_relationships_detected_for_colon_separator_format(self):
+        ctx = """\
+        1. users: id, name, email
+        2. posts: id, user_id, title
+        3. comments: id, post_id, user_id, body
+        """
+        schema = infer_schema([], ctx)
+        rels = {(r["source_table"], r["source_column"]) for r in schema["relationships"]}
+        assert ("posts",    "user_id") in rels
+        assert ("comments", "post_id") in rels

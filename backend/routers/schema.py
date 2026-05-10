@@ -194,7 +194,15 @@ async def infer(
                             all_frameworks_detected.update(compliance["frameworks"])
 
     # --- Context-only mode: build schema from extracted columns ---
-    if not parsed_files and extracted.get("columns"):
+    # Only apply this single-entity override when _infer_schema_from_context did NOT
+    # already produce a multi-table schema (i.e. schema has exactly one generic table).
+    _context_only_single = (
+        not parsed_files
+        and extracted.get("columns")
+        and len(schema.get("tables", [])) == 1
+        and schema["tables"][0].get("table_name") in ("dataset", extracted.get("entity_type", ""))
+    )
+    if _context_only_single:
         entity_type = extracted.get("entity_type", "records")
 
         # Run LLM batch compliance on the extracted column list (with retry)
