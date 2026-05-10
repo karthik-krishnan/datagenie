@@ -66,10 +66,36 @@ export default function SettingsModal() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ provider, api_key: apiKey.trim(), model, extra_config: extra }),
       });
+
+      // Guard against non-JSON responses (e.g. nginx 404/502 when backend is
+      // unreachable, or a static-host returning HTML for /api/* routes).
+      const ct = res.headers.get("content-type") || "";
+      if (!ct.includes("application/json")) {
+        const text = await res.text().catch(() => "");
+        setTestResult({
+          ok: false,
+          message: res.ok
+            ? `Backend returned non-JSON response (status ${res.status}).`
+            : `Cannot reach backend (HTTP ${res.status}). Check that VITE_API_URL / BACKEND_URL is configured and the backend is running.`,
+        });
+        return;
+      }
+
       const data = await res.json();
-      setTestResult({ ok: data.ok, message: data.message });
+      // Backend always returns {ok, message} — but guard against missing fields.
+      setTestResult({
+        ok: data.ok ?? false,
+        message: data.message ?? (data.error ? `Error: ${data.error}` : `HTTP ${res.status}`),
+      });
     } catch (e) {
-      setTestResult({ ok: false, message: e.message });
+      // Network error, CORS block, or JSON parse failure.
+      const msg = e.message || String(e);
+      setTestResult({
+        ok: false,
+        message: msg.includes("JSON")
+          ? "Backend returned an unexpected response. Check that the backend is reachable and VITE_API_URL / BACKEND_URL is set correctly."
+          : msg,
+      });
     } finally {
       setTesting(false);
     }
