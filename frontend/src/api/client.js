@@ -67,6 +67,21 @@ export const api = {
   useProfile: (id) =>
     fetch(`${BASE}/profiles/${id}/use`, { method: "POST" }).then(handle),
 
+  normalizeRule: (ruleText) => {
+    const llm = getLLMConfig();
+    return fetch(`${BASE}/schema/normalize-rule`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        rule: ruleText,
+        llm_provider: llm.provider || "demo",
+        llm_api_key: llm.api_key || "",
+        llm_model: llm.model || "",
+        llm_extra_config: llm.extra_config || {},
+      }),
+    }).then(handle);
+  },
+
   generate: async (payload) => {
     const llm = getLLMConfig();
     const res = await fetch(`${BASE}/generate/`, {

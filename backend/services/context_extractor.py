@@ -7,6 +7,33 @@ import json
 from typing import Any, Dict
 
 
+def _normalise_compliance_rules(compliance_rules: Dict[str, Any], llm_provider=None) -> None:
+    """
+    For any compliance rule with action="Custom" and a custom_rule string,
+    normalise it to a structured masking_op in-place.
+
+    This runs once at schema-inference time so generation is fully deterministic.
+    Uses LLM when available; always falls back to keyword matching.
+    """
+    if not compliance_rules:
+        return
+    try:
+        from services.masking import normalize_masking_rule
+    except ImportError:
+        return
+
+    for col_name, rule in compliance_rules.items():
+        if not isinstance(rule, dict):
+            continue
+        custom_rule = rule.get("custom_rule") or ""
+        action = rule.get("action", "")
+        # Normalise whenever there's a custom_rule text, regardless of action label
+        if custom_rule and not rule.get("masking_op"):
+            op = normalize_masking_rule(custom_rule, llm_provider)
+            if op:
+                rule["masking_op"] = op
+
+
 EXTRACTION_SYSTEM = (
     "You are a test data schema analyst. Extract structured generation requirements "
     "from the user's natural language description. Return ONLY valid JSON, no explanation."
@@ -273,7 +300,10 @@ def extract_from_context(context_text: str, llm_provider=None) -> Dict[str, Any]
         try:
             from services.llm_service import DemoProvider
             if not isinstance(llm_provider, DemoProvider):
-                prompt = EXTRACTION_PROMPT.format(context=context_text.strip())
+                # Truncate context to avoid hitting provider token limits.
+                # Context extraction only needs the user's description, not file rows.
+                truncated = context_text.strip()[:4000]
+                prompt = EXTRACTION_PROMPT.format(context=truncated)
                 raw = llm_provider.generate(prompt, EXTRACTION_SYSTEM)
                 # Strip markdown code fences if present
                 raw = raw.strip()
@@ -281,15 +311,28 @@ def extract_from_context(context_text: str, llm_provider=None) -> Dict[str, Any]
                     raw = re.sub(r"^```(?:json)?\s*", "", raw)
                     raw = re.sub(r"\s*```$", "", raw)
                 parsed = json.loads(raw)
+                # Discard if the LLM returned an error object (e.g. from Azure config issues)
+                if "error" in parsed and len(parsed) == 1:
+                    raise ValueError(f"LLM returned error: {parsed['error']}")
                 # Ensure required keys exist
                 parsed.setdefault("volume", None)
-                parsed.setdefault("entity_type", "records")
                 parsed.setdefault("columns", [])
                 parsed.setdefault("distributions", {})
                 parsed.setdefault("compliance_rules", {})
                 parsed.setdefault("temporal", {})
+                # Normalise entity_type — some LLMs return the string "null" or None
+                raw_et = parsed.get("entity_type")
+                if not raw_et or str(raw_et).strip().lower() in ("null", "none", ""):
+                    parsed["entity_type"] = "records"
+                else:
+                    parsed["entity_type"] = str(raw_et).strip()
+                # Normalise any custom masking rules → structured masking_op
+                _normalise_compliance_rules(parsed["compliance_rules"], llm_provider)
                 return parsed
         except Exception:
             pass  # Fall through to regex
 
-    return _regex_fallback(context_text)
+    result = _regex_fallback(context_text)
+    # Normalise any custom masking rules from the regex fallback too
+    _normalise_compliance_rules(result.get("compliance_rules", {}), llm_provider)
+    return result

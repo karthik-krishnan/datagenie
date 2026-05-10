@@ -78,6 +78,11 @@ export default function App() {
       const result = await api.inferSchema(uploadedFiles, contextText, sessionId);
       setInferredSchema(result);
 
+      // Surface LLM provider configuration warnings (e.g. missing Azure endpoint)
+      if (result.llm_warning) {
+        setError(`⚠️ LLM configuration issue: ${result.llm_warning} Schema was inferred using built-in rules only.`);
+      }
+
       // Pre-populate subsequent stages from what the LLM/extractor understood
       const ext = result.extracted || {};
 

@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import ChipSelector from "../common/ChipSelector.jsx";
+import { api } from "../../api/client.js";
 
 // ─── Framework catalogue shown to the user ──────────────────────────────────
 const ALL_FRAMEWORKS = [
@@ -125,7 +126,8 @@ export default function ComplianceReviewPanel({
   onBack,
   onContinue,
 }) {
-  const [step, setStep] = useState("select");   // "select" | "fields"
+  const [step, setStep] = useState("select");            // "select" | "fields"
+  const [normalizingFields, setNormalizingFields] = useState({}); // fieldName → true while pending
 
   // ── Step 1: Framework selection ──────────────────────────────────────────
   const toggleFramework = (id) => {
@@ -180,9 +182,37 @@ export default function ComplianceReviewPanel({
     onUpdate(next);
   };
 
-  const updateField = (fieldName, patch) => {
-    onUpdate({ ...complianceRules, [fieldName]: { ...(complianceRules[fieldName] || {}), ...patch } });
-  };
+  const updateField = useCallback(async (fieldName, patch) => {
+    // Immediately apply the visible update so the UI feels instant
+    const next = {
+      ...complianceRules,
+      [fieldName]: { ...(complianceRules[fieldName] || {}), ...patch },
+    };
+    onUpdate(next);
+
+    // If this is a custom rule text, kick off background normalisation
+    if (patch.action === "Custom" && patch.custom_rule) {
+      setNormalizingFields((prev) => ({ ...prev, [fieldName]: true }));
+      try {
+        const result = await api.normalizeRule(patch.custom_rule);
+        if (result?.masking_op) {
+          onUpdate((prev) => ({
+            ...prev,
+            [fieldName]: { ...(prev[fieldName] || {}), masking_op: result.masking_op },
+          }));
+        }
+      } catch (_) {
+        // Normalisation failure is non-fatal — keyword fallback runs at generation time
+      } finally {
+        setNormalizingFields((prev) => {
+          const copy = { ...prev };
+          delete copy[fieldName];
+          return copy;
+        });
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [complianceRules, onUpdate]);
 
   // ── Render: Step 1 — pick frameworks ────────────────────────────────────
   if (step === "select") {
@@ -349,9 +379,19 @@ export default function ComplianceReviewPanel({
                 </div>
 
                 {rule.custom_rule && (
-                  <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                    📋 {rule.custom_rule}
-                  </p>
+                  <div className="text-xs bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-start gap-2">
+                    <span className="text-amber-800 flex-1">📋 {rule.custom_rule}</span>
+                    {normalizingFields[col.name] ? (
+                      <span className="text-amber-500 whitespace-nowrap animate-pulse">⚙ parsing…</span>
+                    ) : rule.masking_op ? (
+                      <span
+                        className="text-green-600 whitespace-nowrap"
+                        title={`Op: ${rule.masking_op.type}${rule.masking_op.n != null ? `, n=${rule.masking_op.n}` : ""}`}
+                      >
+                        ✓ structured
+                      </span>
+                    ) : null}
+                  </div>
                 )}
               </div>
             );

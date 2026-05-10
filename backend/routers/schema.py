@@ -9,9 +9,15 @@ from database import get_db
 from models import UploadedFile as UploadedFileModel, LLMSettings as LLMSettingsModel
 from services.file_parser import parse_file
 from services.schema_inferrer import infer_schema
-from services.compliance_detector import detect_compliance, detect_domain_frameworks, FRAMEWORK_RECOMMENDATIONS
+from services.compliance_detector import (
+    detect_compliance,
+    detect_compliance_batch_llm,
+    detect_domain_frameworks,
+    FRAMEWORK_RECOMMENDATIONS,
+)
 from services.context_extractor import extract_from_context
 from services.llm_service import get_provider
+from services.masking import normalize_masking_rule
 
 router = APIRouter()
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "/app/uploads")
@@ -107,8 +113,19 @@ async def infer(
     # --- Resolve LLM provider (override from browser > DB > demo fallback) ---
     llm_provider_obj = await _get_llm_provider(db, llm_override)
 
+    # --- Validate provider config early — surface clear errors for misconfigured providers ---
+    from services.llm_service import DemoProvider, AzureOpenAIProvider
+    llm_warning: str | None = None
+    if isinstance(llm_provider_obj, AzureOpenAIProvider):
+        if not llm_provider_obj.endpoint:
+            llm_warning = ("Azure OpenAI endpoint is not configured. "
+                           "Open Settings and add 'endpoint' to Extra Config (e.g. "
+                           "https://your-resource.openai.azure.com/).")
+        elif not llm_provider_obj.deployment:
+            llm_warning = ("Azure OpenAI deployment name is not configured. "
+                           "Open Settings and add 'deployment' to Extra Config.")
+
     # --- Demo mode: skip all parsing, return a pre-built template ---
-    from services.llm_service import DemoProvider
     if isinstance(llm_provider_obj, DemoProvider) and not parsed_files:
         from services.demo_templates import get_demo_schema
         return get_demo_schema(context_text)
@@ -122,10 +139,30 @@ async def infer(
     # --- Compliance detection on all columns (multi-framework aware) ---
     sensitive_detected = False
     all_frameworks_detected: set = set()
+
+    # Gather all columns for one-shot LLM classification
+    all_cols_for_llm = [
+        {"name": col["name"], "sample_values": col.get("sample_values", [])}
+        for table in schema["tables"]
+        for col in table["columns"]
+    ]
+
+    # LLM batch classification with validation + retry (skipped for DemoProvider)
+    llm_batch = detect_compliance_batch_llm(
+        all_cols_for_llm, llm_provider_obj, context_text, domain_frameworks
+    )
+    llm_compliance = llm_batch["results"]
+    if llm_batch["warning"] and not llm_warning:
+        llm_warning = llm_batch["warning"]
+
     for table in schema["tables"]:
         for col in table["columns"]:
             sample = col.get("sample_values", [])
-            compliance = detect_compliance(col["name"], sample, domain_frameworks)
+            # Prefer LLM result; fall back to deterministic catalog / value-pattern matching
+            compliance = (
+                llm_compliance.get(col["name"])
+                or detect_compliance(col["name"], sample, domain_frameworks)
+            )
             col["pii"] = compliance
             if compliance["is_sensitive"]:
                 sensitive_detected = True
@@ -159,12 +196,29 @@ async def infer(
     # --- Context-only mode: build schema from extracted columns ---
     if not parsed_files and extracted.get("columns"):
         entity_type = extracted.get("entity_type", "records")
+
+        # Run LLM batch compliance on the extracted column list (with retry)
+        extracted_col_dicts = [
+            {"name": c.get("name", ""), "sample_values": []}
+            for c in extracted["columns"] if c.get("name")
+        ]
+        llm_ctx_batch = detect_compliance_batch_llm(
+            extracted_col_dicts, llm_provider_obj, context_text, domain_frameworks
+        )
+        llm_compliance_ctx = llm_ctx_batch["results"]
+        if llm_ctx_batch["warning"] and not llm_warning:
+            llm_warning = llm_ctx_batch["warning"]
+
         cols = []
         for c in extracted["columns"]:
             name = c.get("name", "")
             if not name:
                 continue
-            compliance = detect_compliance(name, [], domain_frameworks)
+            # LLM result preferred; catalog/pattern fallback
+            compliance = (
+                llm_compliance_ctx.get(name)
+                or detect_compliance(name, [], domain_frameworks)
+            )
             cr = extracted.get("compliance_rules", {}).get(name)
             if cr and cr.get("pii_type") and not compliance["is_sensitive"]:
                 compliance = {
@@ -202,6 +256,7 @@ async def infer(
     schema["domain_frameworks"] = sorted(domain_frameworks)
     schema["context"] = context_text
     schema["extracted"] = extracted
+    schema["llm_warning"] = llm_warning  # None when all OK; string when provider misconfigured
 
     try:
         await db.commit()
@@ -209,3 +264,43 @@ async def infer(
         await db.rollback()
 
     return schema
+
+
+# ---------------------------------------------------------------------------
+# Normalise a plain-English masking rule → structured MaskingOp
+# Called by the frontend whenever a user types a custom compliance rule.
+# ---------------------------------------------------------------------------
+class _NormaliseRuleRequest(dict):
+    """Thin wrapper — FastAPI reads the JSON body as a plain dict."""
+
+
+@router.post("/normalize-rule")
+async def normalize_rule(
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    POST /api/schema/normalize-rule
+    Body: {"rule": "<plain-text masking instruction>", "llm_provider": "...", ...}
+    Returns: {"masking_op": {...} | null, "rule": "<original text>"}
+
+    The frontend calls this when the user saves a custom compliance rule so the
+    structured op is stored alongside the text and generation stays deterministic.
+    """
+    rule_text = (body.get("rule") or "").strip()
+    if not rule_text:
+        return {"masking_op": None, "rule": rule_text}
+
+    # Build LLM provider from body or DB / demo fallback
+    llm_override = None
+    if body.get("llm_provider"):
+        llm_override = {
+            "provider": body.get("llm_provider", "demo"),
+            "api_key": body.get("llm_api_key", ""),
+            "model": body.get("llm_model", ""),
+            "extra_config": body.get("llm_extra_config", {}),
+        }
+    provider = await _get_llm_provider(db, llm_override)
+
+    op = normalize_masking_rule(rule_text, provider)
+    return {"masking_op": op, "rule": rule_text}

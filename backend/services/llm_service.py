@@ -6,10 +6,41 @@ class LLMProvider:
     def generate(self, prompt: str, system_prompt: str = "") -> str:
         raise NotImplementedError
 
+    # ---------------------------------------------------------------------------
+    # Provider capability flags
+    # ---------------------------------------------------------------------------
+    @property
+    def is_demo(self) -> bool:
+        return False
+
+    @property
+    def sends_data_to_external_api(self) -> bool:
+        """True for any provider that makes external API calls with user data."""
+        return True
+
+    @property
+    def max_response_tokens(self) -> int:
+        """Safe default; subclasses override for provider-specific limits."""
+        return 4096
+
+    @property
+    def content_filter_strict(self) -> bool:
+        """True for providers (e.g. Azure) that apply strict content filtering.
+        When True, raw sample values from uploaded files must NOT be sent in prompts."""
+        return False
+
 
 class DemoProvider(LLMProvider):
     def generate(self, prompt: str, system_prompt: str = "") -> str:
         return json.dumps({"demo": True, "value": "sample"})
+
+    @property
+    def is_demo(self) -> bool:
+        return True
+
+    @property
+    def sends_data_to_external_api(self) -> bool:
+        return False
 
 
 class AnthropicProvider(LLMProvider):
@@ -17,13 +48,17 @@ class AnthropicProvider(LLMProvider):
         self.api_key = api_key
         self.model = model or "claude-sonnet-4-20250514"
 
+    @property
+    def max_response_tokens(self) -> int:
+        return 8192  # Claude supports long outputs
+
     def generate(self, prompt: str, system_prompt: str = "") -> str:
         try:
             from anthropic import Anthropic
             client = Anthropic(api_key=self.api_key)
             msg = client.messages.create(
                 model=self.model,
-                max_tokens=2048,
+                max_tokens=self.max_response_tokens,
                 system=system_prompt or "You generate realistic synthetic test data. Respond only with valid JSON.",
                 messages=[{"role": "user", "content": prompt}],
             )
@@ -37,6 +72,10 @@ class OpenAIProvider(LLMProvider):
         self.api_key = api_key
         self.model = model or "gpt-4o"
 
+    @property
+    def max_response_tokens(self) -> int:
+        return 4096
+
     def generate(self, prompt: str, system_prompt: str = "") -> str:
         try:
             from openai import OpenAI
@@ -47,7 +86,7 @@ class OpenAIProvider(LLMProvider):
                     {"role": "system", "content": system_prompt or "Generate realistic JSON test data."},
                     {"role": "user", "content": prompt},
                 ],
-                max_tokens=2048,
+                max_tokens=self.max_response_tokens,
             )
             return resp.choices[0].message.content or ""
         except Exception as e:
@@ -57,21 +96,41 @@ class OpenAIProvider(LLMProvider):
 class AzureOpenAIProvider(LLMProvider):
     def __init__(self, api_key: str, endpoint: str, deployment: str, api_version: str = "2024-02-15-preview"):
         self.api_key = api_key
-        self.endpoint = endpoint
+        self.endpoint = endpoint.rstrip("/") if endpoint else ""
         self.deployment = deployment
         self.api_version = api_version
 
+    @property
+    def max_response_tokens(self) -> int:
+        return 4096
+
+    @property
+    def content_filter_strict(self) -> bool:
+        """Azure OpenAI applies strict content filtering — raw PII/PCI sample data
+        from uploaded files must not be included in LLM prompts."""
+        return True
+
     def generate(self, prompt: str, system_prompt: str = "") -> str:
+        if not self.endpoint:
+            return json.dumps({"error": "Azure OpenAI endpoint is not configured. "
+                                        "Set 'endpoint' in Settings → Extra Config."})
+        if not self.deployment:
+            return json.dumps({"error": "Azure deployment name is not configured. "
+                                        "Set 'deployment' in Settings → Extra Config."})
         try:
             from openai import AzureOpenAI
-            client = AzureOpenAI(api_key=self.api_key, azure_endpoint=self.endpoint, api_version=self.api_version)
+            client = AzureOpenAI(
+                api_key=self.api_key,
+                azure_endpoint=self.endpoint,
+                api_version=self.api_version,
+            )
             resp = client.chat.completions.create(
                 model=self.deployment,
                 messages=[
                     {"role": "system", "content": system_prompt or "Generate realistic JSON test data."},
                     {"role": "user", "content": prompt},
                 ],
-                max_tokens=2048,
+                max_tokens=self.max_response_tokens,
             )
             return resp.choices[0].message.content or ""
         except Exception as e:

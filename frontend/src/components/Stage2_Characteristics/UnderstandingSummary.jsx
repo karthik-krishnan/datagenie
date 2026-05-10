@@ -13,7 +13,10 @@ const ACTION_LABELS = {
 export default function UnderstandingSummary({ extracted, schema }) {
   if (!extracted) return null;
 
-  const { volume, entity_type, distributions, compliance_rules, temporal } = extracted;
+  const { volume, distributions, compliance_rules, temporal } = extracted;
+  // Guard against LLMs returning the string "null" instead of a real entity name
+  const raw_et = extracted.entity_type;
+  const entity_type = (raw_et && String(raw_et).trim().toLowerCase() !== "null") ? raw_et : null;
 
   const columns = schema?.tables?.[0]?.columns || [];
 

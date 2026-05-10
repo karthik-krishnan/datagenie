@@ -4,14 +4,17 @@ Multi-framework regulatory compliance detector.
 Identifies applicable frameworks (HIPAA, PCI, GDPR, CCPA, PII, SOX, FERPA)
 for each field — based on:
   1. Domain context extracted from free-form text (e.g. "healthcare data" → HIPAA)
-  2. Column name keyword matching against a comprehensive field catalog
-  3. Value pattern matching from sample data (regex / Luhn)
+  2. LLM-based batch classification (when a real LLM provider is available)
+     — handles typos, synonyms, semantic similarity, context-aware variants
+  3. Column name keyword matching against a comprehensive field catalog (fallback)
+  4. Value pattern matching from sample data (regex / Luhn)
 
 Each detected field returns ALL applicable frameworks, not just one.
 """
 
+import json
 import re
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List, Optional, Set
 
 # ---------------------------------------------------------------------------
 # Regex patterns for value-based detection
@@ -361,6 +364,228 @@ def _build_result(frameworks: List[str], field_type: str, default_action: str, c
         "recommendations": {fw: FRAMEWORK_RECOMMENDATIONS.get(fw, "") for fw in frameworks},
         "confidence": confidence,
     }
+
+
+# ---------------------------------------------------------------------------
+# LLM-based batch compliance detection
+# ---------------------------------------------------------------------------
+
+_COMPLIANCE_SYSTEM_PROMPT = """\
+You are a regulatory compliance expert specialising in data-privacy frameworks:
+PII, PCI, HIPAA, GDPR, CCPA, SOX, and FERPA.
+
+Classify each database column supplied by the user.
+
+Rules:
+- Apply ALL frameworks that genuinely apply — a column may belong to several.
+- Handle typos, synonyms, abbreviations, and domain-specific variants
+  (e.g. "pt_id" → HIPAA patient identifier; "cc_num" → PCI card number).
+- Use domain context (healthcare, payments, education …) to assign HIPAA / PCI /
+  FERPA even when the column name alone is ambiguous.
+- default_action MUST be one of:
+    fake_realistic      – replace with synthetic realistic value
+    format_preserving   – preserve format/length, change digits (card#, SSN, IBAN)
+    mask                – replace with *** / range-bucketed value (IPs, salaries)
+    redact              – remove entirely (CVV, biometrics, political opinion)
+- Respond with ONLY valid JSON — no markdown, no code fences, no explanation.
+
+Framework quick-reference:
+  PII   → names, emails, phones, addresses, DOBs, SSNs, IPs, device IDs, demographics
+  PCI   → card numbers, CVV/CVC, expiry dates, bank accounts, routing/IBAN, SWIFT
+  HIPAA → patient IDs, MRNs, diagnoses, prescriptions, lab results, DOBs (medical),
+           SSNs, dates-of-service, provider names/IDs
+  GDPR  → any PII field for EU residents; national IDs, consent, IP addresses
+  CCPA  → any PII field for California residents
+  SOX   → salary, compensation, bonus, revenue, tax IDs, EINs, audit trails
+  FERPA → student IDs, grades, GPA, transcripts, enrollment, financial-aid records
+
+Response schema (one key per column name supplied):
+{
+  "<column_name>": {
+    "is_sensitive": true,
+    "frameworks": ["PII", "GDPR"],
+    "field_type": "email_address",
+    "default_action": "fake_realistic",
+    "confidence": 0.95
+  }
+}
+"""
+
+
+def detect_compliance_batch_llm(
+    columns: List[Dict],
+    llm_provider,
+    context_text: str = "",
+    domain_frameworks: Optional[Set[str]] = None,
+    max_retries: int = 3,
+) -> Dict[str, Any]:
+    """
+    Classify all columns in a single LLM call, with validation + retry.
+
+    Parameters
+    ----------
+    columns        : list of {"name": str, "sample_values": [...]}
+    llm_provider   : any LLMProvider instance (skipped automatically for DemoProvider)
+    context_text   : free-form user description (for domain cues)
+    domain_frameworks : frameworks already inferred from domain signals
+    max_retries    : how many times to retry when the response is incomplete/invalid
+
+    Returns
+    -------
+    {
+        "results":  dict mapping column_name → compliance dict,
+        "warning":  str | None  — set when retries exhausted or call failed,
+        "attempts": int         — number of LLM calls made,
+    }
+    Caller falls back to detect_compliance() for any column absent from results["results"].
+    """
+    from services.llm_service import DemoProvider  # local import to avoid circular dep
+
+    _empty = {"results": {}, "warning": None, "attempts": 0}
+
+    if isinstance(llm_provider, DemoProvider) or not columns:
+        return _empty
+
+    domain_frameworks = domain_frameworks or set()
+
+    # Whether this provider applies strict content filtering (e.g. Azure OpenAI).
+    # When True, raw sample values from uploaded files are NEVER sent — they may
+    # contain real PII/PCI data that would trigger content policy blocks.
+    safe_samples = not getattr(llm_provider, "content_filter_strict", False)
+    _valid_actions = {"fake_realistic", "format_preserving", "mask", "redact"}
+
+    # ── Build column list text ────────────────────────────────────────────────
+    def _col_lines(col_subset: List[Dict]) -> List[str]:
+        lines = []
+        for col in col_subset:
+            name = col.get("name", "")
+            if not name:
+                continue
+            sample_str = ""
+            if safe_samples:
+                samples = col.get("sample_values") or []
+                clean = [str(v)[:60] for v in samples[:4] if v not in (None, "", "null", "NaN")]
+                if clean:
+                    sample_str = f"  [samples: {', '.join(repr(s) for s in clean)}]"
+            lines.append(f"  {name}{sample_str}")
+        return lines
+
+    def _build_prompt(col_subset: List[Dict], missing: Optional[List[str]] = None) -> str:
+        lines = _col_lines(col_subset)
+        context_block = ""
+        if context_text:
+            context_block += f"\nUser description: {context_text[:600]}"
+        if domain_frameworks:
+            context_block += f"\nDomain frameworks already detected: {', '.join(sorted(domain_frameworks))}"
+        if missing:
+            context_block += (
+                f"\n\nIMPORTANT: Your previous response was missing or invalid for these columns: "
+                f"{', '.join(missing)}. You MUST include all of them in your response."
+            )
+        return (
+            f"Classify these {len(lines)} columns:{context_block}\n\n"
+            + "\n".join(lines)
+            + "\n\nReturn a JSON object with one key per column name."
+        )
+
+    # ── Parse and normalise a raw LLM response ────────────────────────────────
+    def _parse(raw: str) -> Optional[Dict]:
+        try:
+            text = (raw or "").strip()
+            if text.startswith("```"):
+                parts = text.split("```")
+                text = parts[1] if len(parts) >= 2 else text
+                if text.startswith("json"):
+                    text = text[4:]
+                text = text.strip()
+            parsed = json.loads(text)
+            return parsed if isinstance(parsed, dict) else None
+        except Exception:
+            return None
+
+    def _normalise_entry(name: str, entry: dict) -> Optional[Dict]:
+        """Return a valid compliance dict, or None if the entry is unusable."""
+        if not isinstance(entry, dict):
+            return None
+        raw_fws = entry.get("frameworks") or []
+        if not isinstance(raw_fws, list):
+            raw_fws = []
+        valid_fws = [f for f in raw_fws if f in FRAMEWORK_RECOMMENDATIONS]
+        boosted = set(valid_fws) | _domain_boost(valid_fws, domain_frameworks)
+        final_fws = sorted(boosted)
+        is_sensitive = bool(entry.get("is_sensitive", False)) and bool(final_fws)
+        action = entry.get("default_action")
+        if action not in _valid_actions:
+            action = "fake_realistic" if is_sensitive else None
+        confidence = float(entry.get("confidence", 0.8))
+        field_type = entry.get("field_type") or None
+        return {
+            "is_sensitive": is_sensitive,
+            "frameworks": final_fws,
+            "field_type": field_type,
+            "default_action": action,
+            "recommendations": {fw: FRAMEWORK_RECOMMENDATIONS.get(fw, "") for fw in final_fws},
+            "confidence": confidence,
+        }
+
+    # ── Retry loop ────────────────────────────────────────────────────────────
+    valid_names = [c["name"] for c in columns if c.get("name")]
+    results: Dict[str, Dict] = {}
+    missing = list(valid_names)   # start: all columns are "missing"
+    warning: Optional[str] = None
+    attempts = 0
+
+    for attempt in range(1, max_retries + 1):
+        attempts = attempt
+        remaining_cols = [c for c in columns if c.get("name") in missing]
+
+        prompt = _build_prompt(
+            remaining_cols,
+            missing=(missing if attempt > 1 else None),
+        )
+        try:
+            raw = llm_provider.generate(prompt, system_prompt=_COMPLIANCE_SYSTEM_PROMPT)
+        except Exception:
+            warning = (
+                "LLM compliance detection failed (network/API error). "
+                "Built-in rules were used instead."
+            )
+            break
+
+        parsed = _parse(raw)
+
+        # If the provider returned an error JSON from us (e.g. bad Azure config)
+        if parsed and "error" in parsed and len(parsed) == 1:
+            warning = (
+                f"LLM compliance detection error: {parsed['error']} "
+                "Built-in rules were used instead."
+            )
+            break
+
+        if not parsed:
+            # Invalid JSON — will retry
+            continue
+
+        # Absorb any newly classified columns
+        for name in list(missing):
+            entry = parsed.get(name)
+            norm = _normalise_entry(name, entry) if entry else None
+            if norm is not None:
+                results[name] = norm
+                missing.remove(name)
+
+        if not missing:
+            break   # all columns accounted for
+
+    # If columns remain unclassified after all retries, emit a warning
+    if missing and not warning:
+        warning = (
+            f"LLM compliance detection was incomplete after {attempts} attempt(s) — "
+            f"{len(missing)} column(s) classified using built-in rules instead: "
+            f"{', '.join(missing[:10])}{'…' if len(missing) > 10 else ''}."
+        )
+
+    return {"results": results, "warning": warning, "attempts": attempts}
 
 
 # ---------------------------------------------------------------------------

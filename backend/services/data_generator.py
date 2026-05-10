@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from faker import Faker
+from services.masking import apply_masking_op, normalize_masking_rule
 
 fake = Faker()
 
@@ -111,44 +112,23 @@ def _gen_for_field_type(field_type: str) -> Any:
 
 # ---------------------------------------------------------------------------
 # Apply a custom masking rule described in plain text
+# Delegates to structured masking ops via services/masking.py
 # ---------------------------------------------------------------------------
-def _apply_custom_rule(value: str, custom_rule: str) -> str:
-    rule = (custom_rule or "").lower()
+def _apply_custom_rule(value: str, custom_rule: str, masking_op: dict = None) -> str:
+    """Apply a masking instruction to a single generated value.
 
-    # "last N digits visible / show only last N digits"
-    m = re.search(r"last\s+(\d+)\s+digits?", rule)
-    if m:
-        n = int(m.group(1))
-        s = re.sub(r"[^0-9]", "", str(value))   # strip non-digits for counting
-        if len(s) > n:
-            masked = re.sub(r"\d", "*", str(value))   # mask ALL digits first
-            # Now un-mask the last n digits
-            unmasked = list(masked)
-            digit_positions = [i for i, c in enumerate(str(value)) if c.isdigit()]
-            for pos in digit_positions[-n:]:
-                unmasked[pos] = str(value)[pos]
-            return "".join(unmasked)
-        return value
-
-    # "first N digits visible"
-    m = re.search(r"first\s+(\d+)\s+digits?", rule)
-    if m:
-        n = int(m.group(1))
-        digit_positions = [i for i, c in enumerate(str(value)) if c.isdigit()]
-        result = list(str(value))
-        for pos in digit_positions[n:]:
-            result[pos] = "*"
-        return "".join(result)
-
-    # "mask" / "masked"
-    if re.search(r"\bmask\b|\bmasked\b|\bhide\b", rule):
-        return re.sub(r"[A-Za-z0-9]", "*", str(value))
-
-    # "redact"
-    if "redact" in rule:
-        return "[REDACTED]"
-
-    return value
+    Prefers a pre-normalised masking_op (structured dict) when available.
+    Falls back to normalising the plain-text rule on the fly (no LLM, keyword-only).
+    """
+    op = masking_op
+    if not op and custom_rule:
+        # Keyword-only fallback — no LLM call at generation time
+        op = normalize_masking_rule(custom_rule, llm_provider=None)
+    if op:
+        return apply_masking_op(value, op)
+    # Ultimate fallback: mask all alphanumeric
+    import re as _re
+    return _re.sub(r"[A-Za-z0-9]", "*", str(value))
 
 
 # ---------------------------------------------------------------------------
@@ -180,9 +160,11 @@ def _gen_value_for_column(col: Dict[str, Any], compliance_rules: Dict[str, Any])
             return re.sub(r"[A-Za-z0-9]", "*", str(raw))
 
         if action == "Custom" and custom_rule:
-            # Generate a realistic value first, then apply the custom masking rule
+            # Generate a realistic value first, then apply the custom masking rule.
+            # Use pre-normalised masking_op when present (set at schema-inference time).
             raw = _gen_for_field_type(field_type) or _gen_by_type_pattern(col, ctype, pattern, name)
-            return _apply_custom_rule(str(raw), custom_rule)
+            masking_op = rule.get("masking_op")
+            return _apply_custom_rule(str(raw), custom_rule, masking_op)
 
         if action == "format_preserving":
             val = _gen_for_field_type(field_type)
