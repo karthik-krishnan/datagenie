@@ -48,7 +48,7 @@ export default function UploadZone({ files, onFiles }) {
         <ul className="mt-3 space-y-1">
           {files.map((f, i) => (
             <li key={i} className="flex items-center justify-between text-sm bg-gray-50 px-3 py-2 rounded-lg">
-              <span>📄 {f.name} <span className="text-gray-400">({Math.round(f.size / 1024)} KB)</span></span>
+              <span>📄 {f.name} <span className="text-gray-400">({f.size < 1024 ? `${f.size} B` : `${Math.round(f.size / 1024)} KB`})</span></span>
               <button
                 onClick={() => onFiles(files.filter((_, idx) => idx !== i))}
                 className="text-red-500 hover:text-red-700"
