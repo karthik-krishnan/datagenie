@@ -259,7 +259,9 @@ def _gen_value_for_column(col: Dict[str, Any], compliance_rules: Dict[str, Any])
         # fake_realistic or unknown → generate normally (handled below)
 
     # --- Generate based on field_type from compliance detector ---
-    if is_sensitive and field_type:
+    # Skip for city/country/state — fall through to name-based heuristics below
+    # which have country-consistency logic (city within the right country).
+    if is_sensitive and field_type and field_type not in ("city", "country", "state"):
         val = _gen_for_field_type(field_type)
         if val is not None:
             return val
