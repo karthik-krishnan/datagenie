@@ -2,7 +2,7 @@ import os
 import json
 import uuid as _uuid
 from typing import List, Optional
-from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from database import get_db
@@ -52,25 +52,32 @@ async def _get_llm_provider(db: AsyncSession, override: dict = None):
 
 @router.post("/infer")
 async def infer(
-    files: Optional[List[UploadFile]] = File(default=None),
-    context_text: str = Form(""),
-    session_id: Optional[str] = Form(None),
-    # LLM config from browser localStorage — optional, takes priority over DB
-    llm_provider: Optional[str] = Form(None),
-    llm_api_key: Optional[str] = Form(None),
-    llm_model: Optional[str] = Form(None),
-    llm_extra_config: Optional[str] = Form(None),
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ):
+    # Parse multipart form manually — avoids Pydantic v2 single-file coercion bug
+    # where List[UploadFile] rejects a single uploaded file as "not a valid list".
+    form = await request.form()
+    raw_files = form.getlist("files")
+    # getlist returns [] when absent; a single file comes as a 1-item list
+    if not isinstance(raw_files, list):
+        raw_files = [raw_files] if raw_files else []
+
+    context_text  = form.get("context_text", "") or ""
+    session_id    = form.get("session_id")
+    llm_provider  = form.get("llm_provider")
+    llm_api_key   = form.get("llm_api_key", "")
+    llm_model     = form.get("llm_model", "")
+    llm_extra_config = form.get("llm_extra_config", "{}")
+
     # Build override dict from request params if provided
     llm_override = None
     if llm_provider:
         extra_cfg = {}
-        if llm_extra_config:
-            try:
-                extra_cfg = json.loads(llm_extra_config)
-            except Exception:
-                pass
+        try:
+            extra_cfg = json.loads(llm_extra_config or "{}")
+        except Exception:
+            pass
         llm_override = {
             "provider": llm_provider,
             "api_key": llm_api_key or "",
@@ -79,7 +86,7 @@ async def infer(
         }
 
     parsed_files = []
-    for f in (files or []):
+    for f in raw_files:
         ext = (f.filename.split(".")[-1] or "").lower()
         path = os.path.join(UPLOAD_DIR, f"{_uuid.uuid4()}_{f.filename}")
         content = await f.read()
