@@ -19,35 +19,33 @@ class SettingsPayload(BaseModel):
 
 @router.get("/")
 async def get_settings(db: AsyncSession = Depends(get_db)):
+    """Returns non-sensitive settings only. API keys are stored in the browser, not here."""
     result = await db.execute(select(LLMSettingsModel).order_by(LLMSettingsModel.id.desc()).limit(1))
     row = result.scalar_one_or_none()
     if not row:
-        return {"provider": "demo", "api_key": "", "model": "", "extra_config": {}}
+        return {"provider": "demo", "model": "", "extra_config": {}}
     try:
         extra = json.loads(row.extra_config or "{}")
     except Exception:
         extra = {}
     return {
         "provider": row.provider,
-        "api_key": "***" if row.api_key else "",
         "model": row.model,
         "extra_config": extra,
     }
 
 
 @router.post("/test")
-async def test_connection(payload: SettingsPayload, db: AsyncSession = Depends(get_db)):
-    """Try a minimal LLM call to verify the credentials work."""
+async def test_connection(payload: SettingsPayload):
+    """Test the supplied LLM credentials. The key comes directly from the browser — never stored."""
     from services.llm_service import get_provider, DemoProvider
 
-    api_key = payload.api_key or ""
+    if payload.provider == "demo":
+        return {"ok": False, "message": "Demo mode uses sample data — no connection needed."}
 
-    # If the frontend signals "use the saved key", fetch it from DB
-    if api_key in ("USE_SAVED", "KEEP_SAVED", "***", ""):
-        result = await db.execute(select(LLMSettingsModel).order_by(LLMSettingsModel.id.desc()).limit(1))
-        row = result.scalar_one_or_none()
-        if row and row.provider == payload.provider and row.api_key:
-            api_key = row.api_key
+    api_key = (payload.api_key or "").strip()
+    if not api_key and payload.provider not in ("demo", "ollama"):
+        return {"ok": False, "message": "No API key provided — enter your key and try again."}
 
     settings = {
         "provider": payload.provider,
@@ -69,18 +67,12 @@ async def test_connection(payload: SettingsPayload, db: AsyncSession = Depends(g
 
 @router.post("/")
 async def save_settings(payload: SettingsPayload, db: AsyncSession = Depends(get_db)):
-    api_key = payload.api_key or ""
-
-    # If frontend signals to keep the existing key, fetch it from DB instead of overwriting
-    if api_key in ("KEEP_SAVED", "USE_SAVED", "***"):
-        result = await db.execute(select(LLMSettingsModel).order_by(LLMSettingsModel.id.desc()).limit(1))
-        row = result.scalar_one_or_none()
-        api_key = (row.api_key if row else "") or ""
-
+    """Saves non-sensitive settings (provider, model, endpoint) for self-hosted deployments.
+    API keys are no longer saved server-side — they live in the browser's localStorage."""
     await db.execute(delete(LLMSettingsModel))
     rec = LLMSettingsModel(
         provider=payload.provider,
-        api_key=api_key,
+        api_key="",  # never store API keys server-side
         model=payload.model or "",
         extra_config=json.dumps(payload.extra_config or {}),
     )

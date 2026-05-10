@@ -1,3 +1,5 @@
+import { getLLMConfig } from "../utils/llmStorage.js";
+
 const BASE = "/api";
 
 async function handle(res) {
@@ -23,24 +25,28 @@ export const api = {
     for (const f of files) fd.append("files", f);
     fd.append("context_text", contextText || "");
     if (sessionId) fd.append("session_id", sessionId);
+
+    // Attach LLM config from localStorage so backend uses the right provider/key
+    const llm = getLLMConfig();
+    fd.append("llm_provider", llm.provider || "demo");
+    fd.append("llm_api_key", llm.api_key || "");
+    fd.append("llm_model", llm.model || "");
+    fd.append("llm_extra_config", JSON.stringify(llm.extra_config || {}));
+
     return fetch(`${BASE}/schema/infer`, { method: "POST", body: fd }).then(handle);
   },
 
+  // Settings — kept for test connection only; save/load now handled via localStorage
   getSettings: () => fetch(`${BASE}/settings/`).then(handle),
 
-  saveSettings: (payload) =>
-    fetch(`${BASE}/settings/`, {
+  preview: (payload) => {
+    const llm = getLLMConfig();
+    return fetch(`${BASE}/generate/preview`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }).then(handle),
-
-  preview: (payload) =>
-    fetch(`${BASE}/generate/preview`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }).then(handle),
+      body: JSON.stringify({ ...payload, llm_config: llm }),
+    }).then(handle);
+  },
 
   listProfiles: () => fetch(`${BASE}/profiles/`).then(handle),
   getProfile: (id) => fetch(`${BASE}/profiles/${id}`).then(handle),
@@ -62,10 +68,11 @@ export const api = {
     fetch(`${BASE}/profiles/${id}/use`, { method: "POST" }).then(handle),
 
   generate: async (payload) => {
+    const llm = getLLMConfig();
     const res = await fetch(`${BASE}/generate/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ ...payload, llm_config: llm }),
     });
     if (!res.ok) {
       const t = await res.text();

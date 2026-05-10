@@ -22,9 +22,16 @@ class GenerateRequest(BaseModel):
     formats: List[str] = ["csv"]
     output_options: Dict[str, Any] = {}
     packaging: Optional[str] = "one_file_per_entity"
+    # LLM config from browser localStorage — takes priority over DB
+    llm_config: Optional[Dict[str, Any]] = None
 
 
-async def _get_llm_settings(db: AsyncSession):
+async def _get_llm_settings(db: AsyncSession, override: dict = None) -> dict:
+    """Return LLM settings dict. Uses the frontend-supplied override first (localStorage key),
+    falls back to DB for self-hosted deployments, then falls back to demo."""
+    if override and override.get("provider") and override["provider"] != "demo":
+        return override
+
     result = await db.execute(select(LLMSettingsModel).order_by(LLMSettingsModel.id.desc()).limit(1))
     row = result.scalar_one_or_none()
     if not row:
@@ -43,7 +50,7 @@ async def _get_llm_settings(db: AsyncSession):
 
 @router.post("/preview")
 async def preview(req: GenerateRequest, db: AsyncSession = Depends(get_db)):
-    settings = await _get_llm_settings(db)
+    settings = await _get_llm_settings(db, req.llm_config)
     data = generate_data(
         schema=req.schema,
         characteristics=req.characteristics,
@@ -58,7 +65,7 @@ async def preview(req: GenerateRequest, db: AsyncSession = Depends(get_db)):
 
 @router.post("/")
 async def generate_full(req: GenerateRequest, db: AsyncSession = Depends(get_db)):
-    settings = await _get_llm_settings(db)
+    settings = await _get_llm_settings(db, req.llm_config)
     data = generate_data(
         schema=req.schema,
         characteristics=req.characteristics,

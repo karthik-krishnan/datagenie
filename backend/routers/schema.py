@@ -18,8 +18,14 @@ UPLOAD_DIR = os.getenv("UPLOAD_DIR", "/app/uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
-async def _get_llm_provider(db: AsyncSession):
-    """Load current LLM settings from DB and return a provider instance."""
+async def _get_llm_provider(db: AsyncSession, override: dict = None):
+    """Return a provider instance. Uses the frontend-supplied override first (localStorage key),
+    falls back to DB for self-hosted deployments, then falls back to Demo."""
+    if override and override.get("provider") and override["provider"] != "demo":
+        try:
+            return get_provider(override)
+        except Exception:
+            pass
     try:
         result = await db.execute(
             select(LLMSettingsModel).order_by(LLMSettingsModel.id.desc()).limit(1)
@@ -43,8 +49,29 @@ async def infer(
     files: Optional[List[UploadFile]] = File(default=None),
     context_text: str = Form(""),
     session_id: Optional[str] = Form(None),
+    # LLM config from browser localStorage — optional, takes priority over DB
+    llm_provider: Optional[str] = Form(None),
+    llm_api_key: Optional[str] = Form(None),
+    llm_model: Optional[str] = Form(None),
+    llm_extra_config: Optional[str] = Form(None),
     db: AsyncSession = Depends(get_db),
 ):
+    # Build override dict from request params if provided
+    llm_override = None
+    if llm_provider:
+        extra_cfg = {}
+        if llm_extra_config:
+            try:
+                extra_cfg = json.loads(llm_extra_config)
+            except Exception:
+                pass
+        llm_override = {
+            "provider": llm_provider,
+            "api_key": llm_api_key or "",
+            "model": llm_model or "",
+            "extra_config": extra_cfg,
+        }
+
     parsed_files = []
     for f in (files or []):
         ext = (f.filename.split(".")[-1] or "").lower()
@@ -77,15 +104,16 @@ async def infer(
             except Exception:
                 pass
 
+    # --- Resolve LLM provider (override from browser > DB > demo fallback) ---
+    llm_provider_obj = await _get_llm_provider(db, llm_override)
+
     # --- Demo mode: skip all parsing, return a pre-built template ---
-    llm_provider = await _get_llm_provider(db)
     from services.llm_service import DemoProvider
-    if isinstance(llm_provider, DemoProvider) and not parsed_files:
+    if isinstance(llm_provider_obj, DemoProvider) and not parsed_files:
         from services.demo_templates import get_demo_schema
         return get_demo_schema(context_text)
 
     # --- Detect domain frameworks from the context text first ---
-    # This tells us if the user is in a healthcare, payments, EU/GDPR context etc.
     domain_frameworks = detect_domain_frameworks(context_text)
 
     # --- Schema inference from files ---
@@ -98,12 +126,12 @@ async def infer(
         for col in table["columns"]:
             sample = col.get("sample_values", [])
             compliance = detect_compliance(col["name"], sample, domain_frameworks)
-            col["pii"] = compliance   # keeping key name "pii" for frontend compatibility
+            col["pii"] = compliance
             if compliance["is_sensitive"]:
                 sensitive_detected = True
                 all_frameworks_detected.update(compliance["frameworks"])
 
-    # --- Extract structured params from context text (+ file column context) ---
+    # --- Extract structured params from context text ---
     combined_context = context_text.strip()
     if parsed_files and combined_context:
         file_col_summary = "; ".join(
@@ -114,9 +142,9 @@ async def infer(
             f"{combined_context}\n\n[Detected columns from uploaded files: {file_col_summary}]"
         )
 
-    extracted = extract_from_context(combined_context or context_text, llm_provider)
+    extracted = extract_from_context(combined_context or context_text, llm_provider_obj)
 
-    # --- Merge: compliance rules extracted from text → update schema columns ---
+    # --- Merge compliance rules extracted from text → update schema columns ---
     for col_name, rule in extracted.get("compliance_rules", {}).items():
         if rule.get("pii_type"):
             sensitive_detected = True
@@ -124,7 +152,6 @@ async def infer(
                 for col in table["columns"]:
                     if col["name"].lower() == col_name.lower():
                         if not col["pii"]["is_sensitive"]:
-                            # Re-run detection so domain context is applied
                             compliance = detect_compliance(col_name, [], domain_frameworks)
                             col["pii"] = compliance
                             all_frameworks_detected.update(compliance["frameworks"])
@@ -138,7 +165,6 @@ async def infer(
             if not name:
                 continue
             compliance = detect_compliance(name, [], domain_frameworks)
-            # Override with explicit compliance rules from context if present
             cr = extracted.get("compliance_rules", {}).get(name)
             if cr and cr.get("pii_type") and not compliance["is_sensitive"]:
                 compliance = {
@@ -170,7 +196,7 @@ async def infer(
             "relationships": [],
         }
 
-    schema["pii_detected"] = sensitive_detected        # kept for backward compat
+    schema["pii_detected"] = sensitive_detected
     schema["sensitive_detected"] = sensitive_detected
     schema["frameworks_detected"] = sorted(all_frameworks_detected)
     schema["domain_frameworks"] = sorted(domain_frameworks)

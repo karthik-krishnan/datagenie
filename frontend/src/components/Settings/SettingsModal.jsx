@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAppStore } from "../../store/appStore.js";
-import { api } from "../../api/client.js";
+import { getLLMConfig } from "../../utils/llmStorage.js";
 import ProviderCard from "./ProviderCard.jsx";
 import Spinner from "../common/Spinner.jsx";
 
@@ -20,48 +20,40 @@ export default function SettingsModal() {
 
   const [provider, setProvider] = useState("demo");
   const [apiKey, setApiKey] = useState("");
-  const [hasSavedKey, setHasSavedKey] = useState(false);   // key exists in DB but is masked
-  const [replacingKey, setReplacingKey] = useState(false); // user clicked "Change key"
-  const [savedProvider, setSavedProvider] = useState(null); // which provider the DB key belongs to
+  const [editingKey, setEditingKey] = useState(false); // true = show input, false = show masked badge
   const [model, setModel] = useState("");
   const [extra, setExtra] = useState({ endpoint: "", deployment: "", base_url: "http://localhost:11434" });
-  const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);
   const [err, setErr] = useState(null);
 
-  // Load saved settings when modal opens
+  // Load from localStorage when modal opens
   useEffect(() => {
     if (!showSettings) return;
     setTestResult(null);
     setErr(null);
-    api.getSettings().then((s) => {
-      const p = s.provider || "demo";
-      setProvider(p);
-      setModel(s.model || "");
-      setExtra({ endpoint: "", deployment: "", base_url: "http://localhost:11434", ...(s.extra_config || {}) });
-      const keyIsSaved = s.api_key === "***";
-      setHasSavedKey(keyIsSaved);
-      setSavedProvider(keyIsSaved ? p : null);
-      setReplacingKey(false);
-      setApiKey("");
-    }).catch(() => {});
+    const saved = getLLMConfig();
+    setProvider(saved.provider || "demo");
+    setModel(saved.model || "");
+    setExtra({ endpoint: "", deployment: "", base_url: "http://localhost:11434", ...(saved.extra_config || {}) });
+    setApiKey(saved.api_key || "");
+    setEditingKey(false);
   }, [showSettings]);
 
   if (!showSettings) return null;
 
   const current = PROVIDERS.find((p) => p.id === provider);
   const needsKey = provider !== "demo" && provider !== "ollama";
-  const effectiveKeyAvailable = (hasSavedKey && !replacingKey) || apiKey.trim().length > 0;
-  const keyReady = !needsKey || effectiveKeyAvailable;
+  const keyReady = !needsKey || apiKey.trim().length > 0;
 
   const selectProvider = (id) => {
+    const saved = getLLMConfig();
     setProvider(id);
     setModel(PROVIDERS.find((x) => x.id === id)?.models?.[0] || "");
     setTestResult(null);
-    setApiKey("");
-    setReplacingKey(false);
-    setHasSavedKey(id === savedProvider);
+    // If switching to a provider that already has a saved key, restore it; otherwise clear
+    setApiKey(saved.provider === id ? (saved.api_key || "") : "");
+    setEditingKey(false);
   };
 
   const testConnection = async () => {
@@ -69,17 +61,10 @@ export default function SettingsModal() {
     setTestResult(null);
     setErr(null);
     try {
-      // Pass the typed key if provided, otherwise signal backend to use saved key
-      const payload = {
-        provider,
-        api_key: apiKey.trim() || (hasSavedKey ? "USE_SAVED" : ""),
-        model,
-        extra_config: extra,
-      };
       const res = await fetch("/api/settings/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ provider, api_key: apiKey.trim(), model, extra_config: extra }),
       });
       const data = await res.json();
       setTestResult({ ok: data.ok, message: data.message });
@@ -90,25 +75,10 @@ export default function SettingsModal() {
     }
   };
 
-  const save = async () => {
-    setSaving(true);
-    setErr(null);
-    try {
-      // If user left key blank and a saved key exists, don't overwrite it
-      const payload = {
-        provider,
-        api_key: apiKey.trim() || (hasSavedKey ? "KEEP_SAVED" : ""),
-        model,
-        extra_config: extra,
-      };
-      await api.saveSettings(payload);
-      setLLMSettings(payload);
-      setShowSettings(false);
-    } catch (e) {
-      setErr(e.message);
-    } finally {
-      setSaving(false);
-    }
+  const save = () => {
+    const config = { provider, api_key: apiKey.trim(), model, extra_config: extra };
+    setLLMSettings(config); // writes localStorage + updates store
+    setShowSettings(false);
   };
 
   return (
@@ -117,6 +87,12 @@ export default function SettingsModal() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold">LLM Provider Settings</h2>
           <button onClick={() => setShowSettings(false)} className="text-gray-500 hover:text-gray-800 text-2xl leading-none">×</button>
+        </div>
+
+        {/* localStorage disclaimer */}
+        <div className="bg-blue-50 border border-blue-200 text-blue-800 rounded-lg px-4 py-3 mb-4 text-sm flex items-start gap-2">
+          <span className="text-base">🔒</span>
+          <span>Your API key is stored only in <strong>this browser's localStorage</strong> — it is never sent to or stored on our servers. Clearing browser data will remove it.</span>
         </div>
 
         {provider === "demo" && (
@@ -144,29 +120,33 @@ export default function SettingsModal() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">API Key</label>
 
-              {hasSavedKey && !replacingKey ? (
-                /* Saved key — show masked display with a Change button */
+              {apiKey && !editingKey ? (
+                /* Key exists in localStorage — show masked badge */
                 <div className="flex items-center gap-2 border border-green-300 bg-green-50 rounded-lg px-3 py-2">
                   <span className="text-green-700 text-sm">✓</span>
                   <span className="flex-1 text-sm text-green-800 font-medium tracking-widest">••••••••••••••••</span>
-                  <span className="text-xs text-green-600 mr-2">API key saved</span>
+                  <span className="text-xs text-green-600 mr-2">Saved in browser</span>
                   <button
                     type="button"
-                    onClick={() => { setReplacingKey(true); setApiKey(""); }}
+                    onClick={() => { setEditingKey(true); setApiKey(""); setTestResult(null); }}
                     className="text-xs text-indigo-600 hover:text-indigo-800 border border-indigo-200 rounded px-2 py-0.5 bg-white hover:bg-indigo-50"
                   >
                     Change
                   </button>
                 </div>
               ) : (
-                /* No saved key, or user clicked Change */
+                /* No key or user clicked Change */
                 <div>
-                  {replacingKey && (
+                  {editingKey && (
                     <div className="flex items-center gap-2 mb-1.5">
-                      <span className="text-xs text-amber-700">Entering a new key will replace the saved one.</span>
+                      <span className="text-xs text-amber-700">Enter a new key to replace the saved one.</span>
                       <button
                         type="button"
-                        onClick={() => { setReplacingKey(false); setApiKey(""); }}
+                        onClick={() => {
+                          const saved = getLLMConfig();
+                          setApiKey(saved.provider === provider ? (saved.api_key || "") : "");
+                          setEditingKey(false);
+                        }}
                         className="text-xs text-gray-400 hover:text-gray-600 underline"
                       >
                         Cancel
@@ -179,7 +159,7 @@ export default function SettingsModal() {
                     onChange={(e) => setApiKey(e.target.value)}
                     placeholder="Enter API key"
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-indigo-500"
-                    autoFocus={replacingKey}
+                    autoFocus
                   />
                 </div>
               )}
@@ -250,7 +230,6 @@ export default function SettingsModal() {
 
           {err && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2 text-sm">{err}</div>}
 
-          {/* Test connection result */}
           {testResult && (
             <div className={`rounded-lg px-3 py-2 text-sm border ${testResult.ok ? "bg-green-50 border-green-200 text-green-800" : "bg-red-50 border-red-200 text-red-700"}`}>
               {testResult.ok ? "✓" : "✗"} {testResult.message}
@@ -268,8 +247,8 @@ export default function SettingsModal() {
             </button>
             <div className="flex gap-2">
               <button onClick={() => setShowSettings(false)} className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50">Cancel</button>
-              <button onClick={save} disabled={saving} className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50">
-                {saving ? <Spinner /> : "Save Settings"}
+              <button onClick={save} className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
+                Save Settings
               </button>
             </div>
           </div>
