@@ -1,5 +1,6 @@
 import re
 import random
+from collections import defaultdict, deque
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
@@ -180,6 +181,11 @@ def _gen_value_for_column(col: Dict[str, Any], compliance_rules: Dict[str, Any])
         if val is not None:
             return val
 
+    # --- Enum with explicit values: always honour the schema definition ---
+    if ctype == "enum":
+        vals = col.get("enum_values") or ["Option A", "Option B", "Option C"]
+        return random.choice(vals)
+
     # --- Name-based heuristics (catch common column names not in compliance catalog) ---
     nl = name.lower()
     if "first" in nl and "name" in nl:  return fake.first_name()
@@ -265,23 +271,44 @@ def generate_data(
     distributions = (characteristics or {}).get("distributions", {})
     temporal      = (characteristics or {}).get("temporal", {})
 
-    # Order tables: parents before children (referential integrity)
-    parents, children = set(), set()
-    for r in relationships or schema.get("relationships", []):
-        children.add(r["source_table"])
-        parents.add(r["target_table"])
+    all_rels = relationships or schema.get("relationships", [])
 
-    ordered = sorted(
-        tables,
-        key=lambda t: 0 if (t["table_name"] in parents and t["table_name"] not in children) else 1
-    )
+    # ── Topological sort (Kahn's algorithm) — supports multi-hop chains A→B→C ──
+    # source_table = child (has the FK), target_table = parent (owns the PK).
+    table_names = [t["table_name"] for t in tables]
+    in_degree:  Dict[str, int]       = {t: 0 for t in table_names}
+    adj:        Dict[str, List[str]] = defaultdict(list)   # parent → [children]
+
+    for r in all_rels:
+        src, tgt = r["source_table"], r["target_table"]
+        if src in in_degree and tgt in in_degree and tgt != src:
+            adj[tgt].append(src)
+            in_degree[src] += 1
+
+    queue = deque(sorted([t for t in table_names if in_degree[t] == 0]))
+    ordered_names: List[str] = []
+    while queue:
+        node = queue.popleft()
+        ordered_names.append(node)
+        for child in adj[node]:
+            in_degree[child] -= 1
+            if in_degree[child] == 0:
+                queue.append(child)
+
+    # Any tables not reachable via the DAG (isolated or circular) come last
+    remaining = [t for t in table_names if t not in ordered_names]
+    ordered_names.extend(remaining)
+
+    name_to_table = {t["table_name"]: t for t in tables}
+    ordered = [name_to_table[n] for n in ordered_names if n in name_to_table]
 
     pk_cache: Dict[str, List[Any]] = {}
     fk_map:   Dict[str, Dict[str, Any]] = {}
-    for r in (relationships or schema.get("relationships", [])):
+    for r in all_rels:
         fk_map.setdefault(r["source_table"], {})[r["source_column"]] = {
             "target_table":  r["target_table"],
             "target_column": r["target_column"],
+            "cardinality":   r.get("cardinality", "many_to_one"),
         }
 
     out: Dict[str, List[Dict[str, Any]]] = {}
@@ -323,7 +350,17 @@ def generate_data(
                 if fk:
                     parent_pk = pk_cache.get(f"{fk['target_table']}.{fk['target_column']}", [])
                     if parent_pk:
-                        row[cname] = random.choice(parent_pk)
+                        if fk.get("cardinality") == "one_to_one":
+                            # Maintain a shuffle pool so each parent PK is used at most once.
+                            pool_key = f"__1to1__{fk['target_table']}.{fk['target_column']}__{tname}.{cname}"
+                            if pool_key not in pk_cache:
+                                pool = list(parent_pk)
+                                random.shuffle(pool)
+                                pk_cache[pool_key] = pool
+                            pool = pk_cache[pool_key]
+                            row[cname] = pool.pop(0) if pool else random.choice(parent_pk)
+                        else:
+                            row[cname] = random.choice(parent_pk)
                         continue
 
                 # Pre-computed distribution
