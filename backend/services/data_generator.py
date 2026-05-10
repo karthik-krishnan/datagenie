@@ -214,6 +214,21 @@ def _gen_value_for_column(col: Dict[str, Any], compliance_rules: Dict[str, Any])
     return _gen_by_type_pattern(col, ctype, pattern, name)
 
 
+_DATE_FORMAT_MAP = {
+    "YYYY-MM-DD":            "%Y-%m-%d",
+    "MM/DD/YYYY":            "%m/%d/%Y",
+    "DD/MM/YYYY":            "%d/%m/%Y",
+    "YYYY-MM-DD HH:mm:ss":   "%Y-%m-%d %H:%M:%S",
+    "MM/DD/YYYY HH:mm:ss":   "%m/%d/%Y %H:%M:%S",
+}
+
+
+def _format_date(dt_obj, fmt: Optional[str]) -> str:
+    """Format a date/datetime using the user-specified format token string."""
+    strfmt = _DATE_FORMAT_MAP.get(fmt or "YYYY-MM-DD", "%Y-%m-%d")
+    return dt_obj.strftime(strfmt)
+
+
 def _gen_by_type_pattern(col: Dict[str, Any], ctype: str, pattern: str, name: str) -> Any:
     if ctype == "email":     return fake.email()
     if ctype == "phone":     return fake.phone_number()
@@ -221,7 +236,8 @@ def _gen_by_type_pattern(col: Dict[str, Any], ctype: str, pattern: str, name: st
     if ctype == "integer":   return random.randint(1, 10000)
     if ctype == "float":     return round(random.uniform(1.0, 1000.0), 2)
     if ctype == "date":
-        return (datetime.utcnow() - timedelta(days=random.randint(0, 730))).date().isoformat()
+        dt = (datetime.utcnow() - timedelta(days=random.randint(0, 730)))
+        return _format_date(dt, col.get("date_format"))
     if ctype == "enum":
         vals = col.get("enum_values") or ["Option A", "Option B", "Option C"]
         return random.choice(vals)
@@ -238,8 +254,9 @@ def _gen_by_type_pattern(col: Dict[str, Any], ctype: str, pattern: str, name: st
 # ---------------------------------------------------------------------------
 # Temporal aging helper
 # ---------------------------------------------------------------------------
-def _apply_temporal_aging(days_back: int) -> str:
-    return (datetime.utcnow() - timedelta(days=days_back)).date().isoformat()
+def _apply_temporal_aging(days_back: int, fmt: Optional[str] = None) -> str:
+    dt = datetime.utcnow() - timedelta(days=days_back)
+    return _format_date(dt, fmt)
 
 
 # ---------------------------------------------------------------------------
@@ -468,7 +485,7 @@ def generate_data(
                         try:
                             days = int(aging.get("days_back", 0)) if isinstance(aging, dict) else int(aging)
                             if days:
-                                val = _apply_temporal_aging(days)
+                                val = _apply_temporal_aging(days, col.get("date_format"))
                         except Exception:
                             pass
 

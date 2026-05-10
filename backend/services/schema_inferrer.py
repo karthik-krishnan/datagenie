@@ -93,34 +93,75 @@ def _detect_pattern(name: str, values: List[Any]) -> str:
     return "generic"
 
 
-# ─── Shared type-hint table used by both single- and multi-table extraction ───
-_CONTEXT_TYPE_HINTS = {
-    "id": "integer", "uuid": "string", "email": "email", "phone": "phone",
-    "date": "date", "_at": "date", "_on": "date", "dob": "date",
-    "amount": "float", "price": "float", "total": "float", "cost": "float",
-    "count": "integer", "num": "integer", "no": "integer", "qty": "integer",
-    "flag": "boolean", "is_": "boolean", "has_": "boolean",
-    "status": "enum", "type": "enum", "category": "enum", "gender": "enum",
-    "country": "string", "city": "string", "zip": "string", "code": "string",
-}
+# ─── Semantic type inference from column name ────────────────────────────────
+# Maps regex patterns against the lowercased column name.  Order matters —
+# earlier entries win.
+_SEMANTIC_TYPE_RULES: List[tuple] = [
+    # Contact
+    (r"\bemail\b",                             "email"),
+    (r"\bphone\b|\bmobile\b|\bcell\b|\btel\b", "phone"),
+    # Dates — any name that contains "date", ends in _at/_on, or common names
+    (r"\bdate\b|\b_at\b|_at$|_on$|\bscheduled\b|\bordered\b|\bshipped\b"
+     r"|\bdelivered\b|\bcreated\b|\bupdated\b|\bdob\b|\bbirthday\b",
+     "date"),
+    # Booleans
+    (r"^is_|^has_|\bflag\b|\bactive\b|\benabled\b|\bverified\b", "boolean"),
+    # Enums — high-cardinality-name fields that are almost always categoricals
+    (r"\bstatus\b|\btype\b|\bcategory\b|\bgender\b|\brole\b"
+     r"|\bpriority\b|\bstate\b|\bstage\b|\bcondition\b",
+     "enum"),
+    # Numerics
+    (r"\bamount\b|\bprice\b|\bcost\b|\btotal\b|\bsalary\b"
+     r"|\bwage\b|\brate\b|\bbalance\b|\brevenue\b|\bfee\b",
+     "float"),
+    (r"\b_id\b|_id$|\bcount\b|\bnum\b|\bqty\b|\bquantity\b"
+     r"|\bage\b|\brank\b|\bsequence\b|\bseq\b",
+     "integer"),
+    # UUIDs stay as string (not integer)
+    (r"\buuid\b|\bguid\b",                     "string"),
+]
+
+# Sensible default enum values keyed by name fragment
+_ENUM_SUGGESTIONS: List[tuple] = [
+    (r"\bstatus\b",   ["active", "inactive", "pending"]),
+    (r"\bpriority\b", ["low", "medium", "high"]),
+    (r"\bgender\b",   ["male", "female", "non-binary"]),
+    (r"\brole\b",     ["admin", "user", "guest"]),
+    (r"\bstage\b",    ["draft", "in_progress", "complete"]),
+    (r"\btype\b",     ["type_a", "type_b", "type_c"]),
+    (r"\bcategory\b", ["category_1", "category_2", "category_3"]),
+    (r"\bstate\b",    ["open", "closed", "archived"]),
+]
 
 
 def _guess_col_type(name: str) -> str:
     nl = name.lower()
-    for hint, t in _CONTEXT_TYPE_HINTS.items():
-        if hint in nl:
-            return t
+    for pattern, ctype in _SEMANTIC_TYPE_RULES:
+        if re.search(pattern, nl):
+            return ctype
     return "string"
 
 
+def _suggest_enum_values(name: str) -> List[str]:
+    nl = name.lower()
+    for pattern, vals in _ENUM_SUGGESTIONS:
+        if re.search(pattern, nl):
+            return vals
+    return []
+
+
 def _make_col(name: str) -> Dict[str, Any]:
-    return {
+    ctype = _guess_col_type(name)
+    col: Dict[str, Any] = {
         "name": name,
-        "type": _guess_col_type(name),
+        "type": ctype,
         "sample_values": [],
         "pattern": _detect_pattern(name, []),
-        "enum_values": [],
+        "enum_values": _suggest_enum_values(name) if ctype == "enum" else [],
     }
+    if ctype == "date":
+        col["date_format"] = "YYYY-MM-DD"
+    return col
 
 
 def _parse_field_list(raw: str) -> List[str]:
