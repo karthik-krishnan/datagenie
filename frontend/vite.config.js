@@ -10,13 +10,9 @@ export default defineConfig({
   },
   server: {
     host: "0.0.0.0",
-    port: 5173,
+    port: 3001,
     proxy: {
-      "/api": "http://backend:8000",
-    },
-    watch: {
-      usePolling: true,   // required for Docker on macOS — native fs events don't propagate
-      interval: 300,
+      "/api": "http://localhost:8000",
     },
   },
 });

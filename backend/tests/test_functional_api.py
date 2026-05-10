@@ -435,9 +435,6 @@ class TestMultiTableZipDownload:
         # Our data ZIPs have application/zip MIME; XLSX uses spreadsheetml
         assert "application/zip" not in ct
 
-    def test_merged_packaging_returns_single_csv(self):
-        r = _generate(self._two_table_schema(), volume=3, packaging="merged")
-        assert r.headers["content-type"].startswith("text/csv")
-        rows = list(csv.DictReader(io.StringIO(r.content.decode())))
-        assert "_entity" in rows[0]
-        assert len(rows) == 6   # 3 rows × 2 tables
+    def test_multi_table_downloads_as_zip(self):
+        r = _generate(self._two_table_schema(), volume=3)
+        assert r.headers["content-type"] == "application/zip"

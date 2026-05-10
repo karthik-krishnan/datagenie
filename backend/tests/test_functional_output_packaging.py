@@ -216,47 +216,18 @@ class TestXLSXOutput:
         assert list(df["name"]) == ["A", "B"]
 
 
-# ─── Merged packaging ─────────────────────────────────────────────────────────
-
-class TestMergedPackaging:
-
-    def test_merged_is_single_file(self):
-        content, mime, filename = format_output(_multi(("a", "b")), "csv", {}, packaging="merged")
-        assert mime == "text/csv"
-        assert not zipfile.is_zipfile(io.BytesIO(content))
-
-    def test_merged_has_entity_column(self):
-        content, _, _ = format_output(_multi(("users", "orders")), "csv", {}, packaging="merged")
-        reader = csv.DictReader(io.StringIO(content.decode("utf-8")))
-        rows = list(reader)
-        assert "_entity" in rows[0], f"Missing _entity column, keys: {list(rows[0].keys())}"
-
-    def test_merged_contains_all_rows(self):
-        content, _, _ = format_output({"a": _rows(3, "a"), "b": _rows(4, "b")}, "csv", {}, packaging="merged")
-        reader = csv.DictReader(io.StringIO(content.decode("utf-8")))
-        rows = list(reader)
-        assert len(rows) == 7
-
-    def test_merged_entity_values_correct(self):
-        content, _, _ = format_output({"a": _rows(2, "a"), "b": _rows(2, "b")}, "csv", {}, packaging="merged")
-        reader = csv.DictReader(io.StringIO(content.decode("utf-8")))
-        entities = [r["_entity"] for r in reader]
-        assert set(entities) == {"a", "b"}
-
-
 # ─── Edge cases ───────────────────────────────────────────────────────────────
 
 class TestEdgeCases:
 
     def test_empty_table_produces_csv_with_no_data_rows(self):
-        # Empty rows list — should not crash, produces just header (or empty content)
         content, mime, _ = format_output({"empty": []}, "csv", {})
         assert mime == "text/csv"
-        assert content == b""   # _to_csv returns b"" for empty rows
+        assert content == b""
 
-    def test_single_table_no_zip_regardless_of_packaging_setting(self):
-        """Single-table data should never be zipped even if packaging='one_file_per_entity'."""
-        content, mime, _ = format_output(_single(), "csv", {}, packaging="one_file_per_entity")
+    def test_single_table_never_zipped(self):
+        """Single-table output is always a plain file, never a ZIP."""
+        content, mime, _ = format_output(_single(), "csv", {})
         assert mime == "text/csv"
         assert not zipfile.is_zipfile(io.BytesIO(content))
 

@@ -28,35 +28,39 @@ class TestPickTemplate:
         assert is_multi is True
 
     def test_patient_keywords(self):
+        # "healthcare" multi-table template now takes priority over single-table "patients"
         key, is_multi = pick_template("patient records for a hospital")
-        assert key == "patients"
-        assert is_multi is False
+        assert key == "healthcare"
+        assert is_multi is True
         key2, _ = pick_template("clinical data with diagnosis")
-        assert key2 == "patients"
+        assert key2 == "healthcare"
 
     def test_order_keywords(self):
-        # "orders checkout" now matches the multi-table ecommerce template
+        # "orders checkout" matches the multi-table ecommerce template
         key, is_multi = pick_template("e-commerce orders with checkout")
         assert key == "ecommerce"
         assert is_multi is True
 
     def test_employee_keywords(self):
+        # "hr" multi-table template now takes priority over single-table "employees"
         key, is_multi = pick_template("employee payroll and HR records")
-        assert key == "employees"
-        assert is_multi is False
+        assert key == "hr"
+        assert is_multi is True
 
     def test_student_keywords(self):
+        # "education" multi-table template now takes priority over single-table "students"
         key, is_multi = pick_template("student GPA and academic enrollment")
-        assert key == "students"
-        assert is_multi is False
+        assert key == "education"
+        assert is_multi is True
 
     def test_user_keywords(self):
         key, _ = pick_template("user profiles with members")
         assert key == "users"
 
     def test_best_match_wins(self):
+        # "healthcare" multi-table template wins for patient/hospital keywords
         key, _ = pick_template("100 patients in a hospital with diagnosis")
-        assert key == "patients"
+        assert key == "healthcare"
 
 
 # ─── Schema structure ─────────────────────────────────────────────────────────

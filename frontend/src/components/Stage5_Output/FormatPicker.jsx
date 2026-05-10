@@ -79,19 +79,9 @@ export default function FormatPicker({ outputConfig, onChange, multiEntity }) {
       )}
 
       {multiEntity && (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Packaging</label>
-          <ChipSelector
-            options={["One ZIP (separate files)", "Single merged file"]}
-            value={outputConfig.packaging === "merged" ? "Single merged file" : "One ZIP (separate files)"}
-            onChange={(v) => onChange({ packaging: v === "Single merged file" ? "merged" : "one_file_per_entity" })}
-          />
-          <p className="text-xs text-gray-400 mt-1">
-            {outputConfig.packaging === "merged"
-              ? "All tables combined into one file with an _entity column."
-              : "Each table as its own file, bundled in a ZIP."}
-          </p>
-        </div>
+        <p className="text-xs text-gray-400">
+          Multiple tables will be bundled as separate files in a ZIP.
+        </p>
       )}
     </div>
   );

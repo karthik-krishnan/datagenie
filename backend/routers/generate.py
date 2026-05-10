@@ -21,7 +21,6 @@ class GenerateRequest(BaseModel):
     volume: int = 100
     formats: List[str] = ["csv"]
     output_options: Dict[str, Any] = {}
-    packaging: Optional[str] = "one_file_per_entity"
     # LLM config from browser localStorage — takes priority over DB
     llm_config: Optional[Dict[str, Any]] = None
 
@@ -78,7 +77,7 @@ async def generate_full(req: GenerateRequest, db: AsyncSession = Depends(get_db)
 
     formats = req.formats or ["csv"]
     fmt = formats[0]
-    content, mime, filename = format_output(data, fmt, req.output_options or {}, packaging=req.packaging or "one_file_per_entity")
+    content, mime, filename = format_output(data, fmt, req.output_options or {})
     return Response(
         content=content,
         media_type=mime,

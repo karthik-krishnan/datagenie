@@ -104,6 +104,13 @@ export default function App() {
     }
   }, [sessionId, setSessionId]);
 
+  // Wipe stale preview whenever the user navigates away from the Output stage
+  useEffect(() => {
+    if (currentStage !== 5) {
+      setPreviewData(null);
+    }
+  }, [currentStage]);
+
   if (showProfilePicker) {
     return <ProfilePicker />;
   }
@@ -163,7 +170,6 @@ export default function App() {
         volume: characteristics.volume || 100,
         formats: outputConfig.formats,
         output_options: { ...outputConfig.json_options, ...outputConfig.xml_options },
-        packaging: outputConfig.packaging,
       };
       const r = await api.preview(payload);
       setPreviewData(r.preview);
@@ -189,7 +195,6 @@ export default function App() {
         volume: characteristics.volume || 100,
         formats: outputConfig.formats,
         output_options: { ...outputConfig.json_options, ...outputConfig.xml_options },
-        packaging: outputConfig.packaging,
       };
       const { blob, filename } = await api.generate(payload);
       const url = URL.createObjectURL(blob);
@@ -483,7 +488,7 @@ export default function App() {
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-medium">Preview</h3>
                   <button onClick={runPreview} disabled={isLoading} className="text-sm px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50">
-                    {isLoading ? <Spinner /> : "Regenerate preview"}
+                    {isLoading ? <Spinner /> : previewData ? "Regenerate preview" : "Generate preview"}
                   </button>
                 </div>
                 <PreviewTable data={previewData} />

@@ -95,8 +95,13 @@ def format_output(
     data: Dict[str, List[Dict[str, Any]]],
     fmt: str,
     options: Dict[str, Any],
-    packaging: str = "one_file_per_entity",
 ) -> Tuple[bytes, str, str]:
+    """Serialise generated data to bytes.
+
+    Single table  → plain file download (e.g. customers.csv)
+    Multiple tables → ZIP containing one file per table
+    XLSX always    → single workbook with one sheet per table
+    """
     fmt = (fmt or "csv").lower()
 
     if fmt == "xlsx":
@@ -107,14 +112,7 @@ def format_output(
         ext = _ext_for(fmt)
         return _serialize_table(rows, fmt, options), _mime_for(fmt), f"{tname}.{ext}"
 
-    if packaging == "merged":
-        merged = []
-        for tname, rows in data.items():
-            for r in rows:
-                merged.append({"_entity": tname, **r})
-        ext = _ext_for(fmt)
-        return _serialize_table(merged, fmt, options), _mime_for(fmt), f"test_data.{ext}"
-
+    # Multiple tables → one file per table inside a ZIP
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         ext = _ext_for(fmt)

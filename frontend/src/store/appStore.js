@@ -13,7 +13,6 @@ export const useAppStore = create((set, get) => ({
   relationships: [],
   outputConfig: {
     formats: ["csv"],
-    packaging: "one_file_per_entity",
     json_options: { json_mode: "array" },
     xml_options: { xml_root: "root", xml_row: "row" },
   },

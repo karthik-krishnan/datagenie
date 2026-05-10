@@ -122,6 +122,257 @@ MULTI_TEMPLATES: Dict[str, Dict[str, Any]] = {
         ],
     },
 
+    "healthcare": {
+        "keywords": [
+            "patient", "clinical", "health", "medical", "hospital",
+            "diagnosis", "hipaa", "ehr", "emr", "physician", "visit",
+        ],
+        "entity_type": "patients",
+        "volume": 40,
+        "per_parent_counts": {"visits": 4, "prescriptions": 3},
+        "frameworks_detected": ["HIPAA", "PII", "GDPR"],
+        "sensitive_detected": True,
+        "tables": [
+            {
+                "table_name": "patients",
+                "columns": [
+                    {"name": "patient_id",    "type": "string",  "sample_values": ["PAT-00421", "PAT-00422"]},
+                    {"name": "first_name",    "type": "string",  "sample_values": ["Dorothy", "Marcus"]},
+                    {"name": "last_name",     "type": "string",  "sample_values": ["Nguyen", "Williams"]},
+                    {"name": "dob",           "type": "date",    "sample_values": ["1978-03-15", "1965-11-02"],
+                     "date_format": "YYYY-MM-DD"},
+                    {"name": "gender",        "type": "enum",    "sample_values": ["Female", "Male"],
+                     "enum_values": ["Male", "Female", "Non-binary", "Not specified"]},
+                    {"name": "ssn",           "type": "string",  "sample_values": ["***-**-9182", "***-**-4430"]},
+                    {"name": "email",         "type": "email",   "sample_values": ["d.nguyen@email.com"]},
+                    {"name": "phone",         "type": "phone",   "sample_values": ["+1-555-0177"]},
+                    {"name": "insurance_id",  "type": "string",  "sample_values": ["INS-7764210", "INS-3382104"]},
+                    {"name": "blood_type",    "type": "enum",    "sample_values": ["A+", "O-"],
+                     "enum_values": ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]},
+                ],
+                "distributions": {
+                    "gender": {"Male": 48, "Female": 48, "Non-binary": 3, "Not specified": 1},
+                    "blood_type": {"A+": 30, "O+": 38, "B+": 9, "AB+": 3, "A-": 8, "O-": 7, "B-": 2, "AB-": 1},
+                },
+                "compliance_rules": {
+                    "ssn":         {"action": "mask",              "custom_rule": None, "frameworks": ["PII", "HIPAA"]},
+                    "patient_id":  {"action": "format_preserving", "custom_rule": None, "frameworks": ["HIPAA", "PII"]},
+                    "insurance_id":{"action": "format_preserving", "custom_rule": None, "frameworks": ["HIPAA", "PII"]},
+                    "dob":         {"action": "format_preserving", "custom_rule": None, "frameworks": ["PII", "GDPR", "HIPAA"]},
+                    "email":       {"action": "fake_realistic",    "custom_rule": None, "frameworks": ["PII", "GDPR"]},
+                    "phone":       {"action": "fake_realistic",    "custom_rule": None, "frameworks": ["PII"]},
+                },
+            },
+            {
+                "table_name": "visits",
+                "columns": [
+                    {"name": "visit_id",     "type": "integer", "sample_values": ["8001", "8002"]},
+                    {"name": "patient_id",   "type": "string",  "sample_values": ["PAT-00421", "PAT-00422"]},
+                    {"name": "visit_date",   "type": "date",    "sample_values": ["2024-03-10", "2024-04-22"],
+                     "date_format": "YYYY-MM-DD"},
+                    {"name": "physician",    "type": "string",  "sample_values": ["Dr. Sandra Lee", "Dr. Raj Patel"]},
+                    {"name": "diagnosis",    "type": "string",  "sample_values": ["Type 2 Diabetes", "Hypertension"]},
+                    {"name": "visit_type",   "type": "enum",    "sample_values": ["routine", "urgent"],
+                     "enum_values": ["routine", "urgent", "follow-up", "specialist", "emergency"]},
+                    {"name": "notes",        "type": "string",  "sample_values": ["Patient reports improvement"]},
+                ],
+                "distributions": {
+                    "visit_type": {"routine": 45, "follow-up": 30, "urgent": 15, "specialist": 8, "emergency": 2},
+                },
+                "compliance_rules": {
+                    "diagnosis": {"action": "fake_realistic", "custom_rule": None, "frameworks": ["HIPAA"]},
+                    "notes":     {"action": "fake_realistic", "custom_rule": None, "frameworks": ["HIPAA"]},
+                },
+            },
+            {
+                "table_name": "prescriptions",
+                "columns": [
+                    {"name": "prescription_id", "type": "integer", "sample_values": ["7001", "7002"]},
+                    {"name": "patient_id",       "type": "string",  "sample_values": ["PAT-00421"]},
+                    {"name": "drug_name",        "type": "string",  "sample_values": ["Metformin 500mg", "Lisinopril 10mg"]},
+                    {"name": "dosage",           "type": "string",  "sample_values": ["500mg", "10mg"]},
+                    {"name": "frequency",        "type": "enum",    "sample_values": ["daily", "twice daily"],
+                     "enum_values": ["daily", "twice daily", "weekly", "as needed"]},
+                    {"name": "prescribed_date",  "type": "date",    "sample_values": ["2024-03-10"],
+                     "date_format": "YYYY-MM-DD"},
+                    {"name": "refills",          "type": "integer", "sample_values": ["3", "1", "0"]},
+                ],
+                "distributions": {
+                    "frequency": {"daily": 50, "twice daily": 30, "weekly": 12, "as needed": 8},
+                },
+                "compliance_rules": {
+                    "drug_name": {"action": "fake_realistic", "custom_rule": None, "frameworks": ["HIPAA"]},
+                    "dosage":    {"action": "fake_realistic", "custom_rule": None, "frameworks": ["HIPAA"]},
+                },
+            },
+        ],
+        "relationships": [
+            {
+                "source_table": "visits",
+                "source_column": "patient_id",
+                "target_table": "patients",
+                "target_column": "patient_id",
+                "cardinality": "many_to_one",
+                "confidence": 0.95,
+            },
+            {
+                "source_table": "prescriptions",
+                "source_column": "patient_id",
+                "target_table": "patients",
+                "target_column": "patient_id",
+                "cardinality": "many_to_one",
+                "confidence": 0.95,
+            },
+        ],
+    },
+
+    "hr": {
+        "keywords": [
+            "employee", "staff", "hr", "payroll", "salary", "workforce",
+            "department", "hire", "leave", "timesheet",
+        ],
+        "entity_type": "employees",
+        "volume": 60,
+        "per_parent_counts": {"leave_requests": 3},
+        "frameworks_detected": ["SOX", "PII", "GDPR"],
+        "sensitive_detected": True,
+        "tables": [
+            {
+                "table_name": "employees",
+                "columns": [
+                    {"name": "employee_id", "type": "string",  "sample_values": ["EMP-0041", "EMP-0042"]},
+                    {"name": "first_name",  "type": "string",  "sample_values": ["Carlos", "Aisha"]},
+                    {"name": "last_name",   "type": "string",  "sample_values": ["Rivera", "Okonkwo"]},
+                    {"name": "email",       "type": "email",   "sample_values": ["c.rivera@corp.com"]},
+                    {"name": "department",  "type": "enum",    "sample_values": ["Engineering", "Sales", "HR"],
+                     "enum_values": ["Engineering", "Sales", "HR", "Finance", "Marketing", "Operations"]},
+                    {"name": "job_title",   "type": "string",  "sample_values": ["Software Engineer", "Sales Manager"]},
+                    {"name": "salary",      "type": "float",   "sample_values": ["85000", "92000", "74000"]},
+                    {"name": "hire_date",   "type": "date",    "sample_values": ["2021-03-15", "2019-08-01"],
+                     "date_format": "YYYY-MM-DD"},
+                    {"name": "phone",       "type": "phone",   "sample_values": ["+1-555-0199"]},
+                    {"name": "ssn",         "type": "string",  "sample_values": ["***-**-6612"]},
+                    {"name": "tax_id",      "type": "string",  "sample_values": ["EIN-45-1234567"]},
+                ],
+                "distributions": {
+                    "department": {"Engineering": 35, "Sales": 25, "HR": 10, "Finance": 15, "Marketing": 10, "Operations": 5},
+                },
+                "compliance_rules": {
+                    "ssn":     {"action": "mask",              "custom_rule": None, "frameworks": ["PII"]},
+                    "salary":  {"action": "mask",              "custom_rule": None, "frameworks": ["SOX", "PII"]},
+                    "tax_id":  {"action": "format_preserving", "custom_rule": None, "frameworks": ["SOX", "PII"]},
+                    "email":   {"action": "fake_realistic",    "custom_rule": None, "frameworks": ["PII", "GDPR"]},
+                    "phone":   {"action": "fake_realistic",    "custom_rule": None, "frameworks": ["PII"]},
+                },
+            },
+            {
+                "table_name": "leave_requests",
+                "columns": [
+                    {"name": "request_id",   "type": "integer", "sample_values": ["3001", "3002"]},
+                    {"name": "employee_id",  "type": "string",  "sample_values": ["EMP-0041", "EMP-0042"]},
+                    {"name": "leave_type",   "type": "enum",    "sample_values": ["annual", "sick"],
+                     "enum_values": ["annual", "sick", "parental", "unpaid", "bereavement"]},
+                    {"name": "start_date",   "type": "date",    "sample_values": ["2024-06-10"],
+                     "date_format": "YYYY-MM-DD"},
+                    {"name": "end_date",     "type": "date",    "sample_values": ["2024-06-14"],
+                     "date_format": "YYYY-MM-DD"},
+                    {"name": "days",         "type": "integer", "sample_values": ["5", "1", "3"]},
+                    {"name": "status",       "type": "enum",    "sample_values": ["approved", "pending"],
+                     "enum_values": ["pending", "approved", "rejected", "cancelled"]},
+                ],
+                "distributions": {
+                    "leave_type": {"annual": 50, "sick": 30, "parental": 10, "unpaid": 7, "bereavement": 3},
+                    "status":     {"approved": 70, "pending": 20, "rejected": 7, "cancelled": 3},
+                },
+                "compliance_rules": {},
+            },
+        ],
+        "relationships": [
+            {
+                "source_table": "leave_requests",
+                "source_column": "employee_id",
+                "target_table": "employees",
+                "target_column": "employee_id",
+                "cardinality": "many_to_one",
+                "confidence": 0.95,
+            },
+        ],
+    },
+
+    "education": {
+        "keywords": [
+            "student", "school", "university", "grade", "course",
+            "academic", "enrollment", "gpa", "ferpa", "class", "module",
+        ],
+        "entity_type": "students",
+        "volume": 50,
+        "per_parent_counts": {"enrollments": 4},
+        "frameworks_detected": ["FERPA", "PII", "GDPR"],
+        "sensitive_detected": True,
+        "tables": [
+            {
+                "table_name": "students",
+                "columns": [
+                    {"name": "student_id",   "type": "string",  "sample_values": ["STU-20041", "STU-20042"]},
+                    {"name": "first_name",   "type": "string",  "sample_values": ["Mei", "Jordan"]},
+                    {"name": "last_name",    "type": "string",  "sample_values": ["Zhang", "Brooks"]},
+                    {"name": "email",        "type": "email",   "sample_values": ["mzhang@university.edu"]},
+                    {"name": "dob",          "type": "date",    "sample_values": ["2001-07-14"],
+                     "date_format": "YYYY-MM-DD"},
+                    {"name": "enrollment_status", "type": "enum", "sample_values": ["Full-time", "Part-time"],
+                     "enum_values": ["Full-time", "Part-time", "Online"]},
+                    {"name": "major",        "type": "string",  "sample_values": ["Computer Science", "Biology"]},
+                    {"name": "year",         "type": "enum",    "sample_values": ["Sophomore", "Junior"],
+                     "enum_values": ["Freshman", "Sophomore", "Junior", "Senior", "Graduate"]},
+                    {"name": "gpa",          "type": "float",   "sample_values": ["3.7", "2.9", "3.4"]},
+                    {"name": "financial_aid","type": "float",   "sample_values": ["5000", "8500", "0"]},
+                ],
+                "distributions": {
+                    "enrollment_status": {"Full-time": 70, "Part-time": 20, "Online": 10},
+                    "year": {"Freshman": 25, "Sophomore": 25, "Junior": 20, "Senior": 20, "Graduate": 10},
+                },
+                "compliance_rules": {
+                    "student_id":   {"action": "format_preserving", "custom_rule": None, "frameworks": ["FERPA", "PII"]},
+                    "gpa":          {"action": "fake_realistic",    "custom_rule": None, "frameworks": ["FERPA"]},
+                    "financial_aid":{"action": "mask",              "custom_rule": None, "frameworks": ["FERPA", "SOX"]},
+                    "dob":          {"action": "format_preserving", "custom_rule": None, "frameworks": ["PII", "GDPR"]},
+                    "email":        {"action": "fake_realistic",    "custom_rule": None, "frameworks": ["PII", "GDPR"]},
+                },
+            },
+            {
+                "table_name": "enrollments",
+                "columns": [
+                    {"name": "enrollment_id", "type": "integer", "sample_values": ["6001", "6002"]},
+                    {"name": "student_id",    "type": "string",  "sample_values": ["STU-20041"]},
+                    {"name": "course_code",   "type": "string",  "sample_values": ["CS101", "BIO202"]},
+                    {"name": "course_name",   "type": "string",  "sample_values": ["Introduction to CS", "Cell Biology"]},
+                    {"name": "semester",      "type": "enum",    "sample_values": ["Fall 2024", "Spring 2024"],
+                     "enum_values": ["Fall 2024", "Spring 2025", "Summer 2025"]},
+                    {"name": "grade",         "type": "enum",    "sample_values": ["A", "B+", "A-"],
+                     "enum_values": ["A", "A-", "B+", "B", "B-", "C+", "C", "D", "F", "W"]},
+                    {"name": "credits",       "type": "integer", "sample_values": ["3", "4", "2"]},
+                ],
+                "distributions": {
+                    "grade": {"A": 20, "A-": 15, "B+": 18, "B": 17, "B-": 10, "C+": 8, "C": 6, "D": 3, "F": 2, "W": 1},
+                    "semester": {"Fall 2024": 45, "Spring 2025": 45, "Summer 2025": 10},
+                },
+                "compliance_rules": {
+                    "grade": {"action": "fake_realistic", "custom_rule": None, "frameworks": ["FERPA"]},
+                },
+            },
+        ],
+        "relationships": [
+            {
+                "source_table": "enrollments",
+                "source_column": "student_id",
+                "target_table": "students",
+                "target_column": "student_id",
+                "cardinality": "many_to_one",
+                "confidence": 0.95,
+            },
+        ],
+    },
+
 }
 
 # ── Single-table templates ──────────────────────────────────────────────────
