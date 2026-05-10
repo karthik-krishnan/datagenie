@@ -374,13 +374,14 @@ class TestRelationshipsViaGenerateEndpoint:
                 f"orders.user_id={order['user_id']} not in users.id set {user_ids}"
             )
 
-    def test_both_tables_have_correct_volume(self):
-        r = _generate(self._schema(), self._rels(), volume=7)
+    def test_child_table_scales_up(self):
+        """users (root, depth 0) = volume; orders (child, depth 1) = volume × 3."""
+        r = _generate(self._schema(), self._rels(), volume=5)
         with zipfile.ZipFile(io.BytesIO(r.content)) as zf:
             u_rows = list(csv.DictReader(io.StringIO(zf.read("users.csv").decode())))
             o_rows = list(csv.DictReader(io.StringIO(zf.read("orders.csv").decode())))
-        assert len(u_rows) == 7
-        assert len(o_rows) == 7
+        assert len(u_rows) == 5
+        assert len(o_rows) == 15   # 5 × 3
 
 
 # ─── Req 6: Multi-table generate → ZIP ───────────────────────────────────────

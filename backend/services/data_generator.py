@@ -255,6 +255,77 @@ def _apply_enum_distribution(col: Dict[str, Any], distribution: Dict[str, float]
 
 
 # ---------------------------------------------------------------------------
+# Per-table volume calculation
+#
+# Root tables (no inbound FK) get `volume` rows.
+# Child tables in a many_to_one relationship scale up so the relationship
+# feels realistic:
+#
+#   depth 0  (root)            →  volume
+#   depth 1  (direct child)    →  volume × children_per_parent
+#   depth 2  (grandchild)      →  volume × children_per_parent²
+#
+# one_to_one children always get the same count as their parent.
+#
+# `per_table_volumes` (from characteristics) overrides everything for a
+# specific table.  Preview mode always uses the passed volume unchanged.
+# ---------------------------------------------------------------------------
+def _compute_table_volumes(
+    table_names:         List[str],
+    all_rels:            List[Dict[str, Any]],
+    parent_to_children:  Dict[str, List[str]],   # adj from topological sort
+    base_volume:         int,
+    per_table_volumes:   Dict[str, int],
+    children_per_parent: int,
+    preview:             bool,
+) -> Dict[str, int]:
+    if preview:
+        return {t: base_volume for t in table_names}
+
+    tname_set = set(table_names)
+
+    # BFS from roots to assign depth
+    child_set = {
+        r["source_table"] for r in all_rels
+        if r["source_table"] in tname_set and r["target_table"] in tname_set
+    }
+    depth: Dict[str, int] = {}
+    queue: deque = deque()
+    for t in table_names:
+        if t not in child_set:
+            depth[t] = 0
+            queue.append((t, 0))
+    while queue:
+        tname, d = queue.popleft()
+        for child in parent_to_children.get(tname, []):
+            if child not in depth or depth[child] < d + 1:
+                depth[child] = d + 1
+                queue.append((child, d + 1))
+
+    # Dominant incoming cardinality per table
+    # (many_to_one beats one_to_one — if any parent sends many children, scale up)
+    incoming: Dict[str, str] = {}
+    for r in all_rels:
+        src  = r["source_table"]
+        card = r.get("cardinality", "many_to_one")
+        if src not in incoming or card == "many_to_one":
+            incoming[src] = card
+
+    result: Dict[str, int] = {}
+    for t in table_names:
+        if t in per_table_volumes:
+            result[t] = max(1, int(per_table_volumes[t]))
+        else:
+            d    = depth.get(t, 0)
+            card = incoming.get(t, "many_to_one")
+            if d == 0 or card == "one_to_one":
+                result[t] = base_volume
+            else:
+                result[t] = max(base_volume, int(base_volume * (children_per_parent ** d)))
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
 def generate_data(
@@ -267,9 +338,12 @@ def generate_data(
     preview: bool = False,
 ) -> Dict[str, List[Dict[str, Any]]]:
 
-    tables        = schema.get("tables", [])
-    distributions = (characteristics or {}).get("distributions", {})
-    temporal      = (characteristics or {}).get("temporal", {})
+    tables               = schema.get("tables", [])
+    characteristics      = characteristics or {}
+    distributions        = characteristics.get("distributions", {})
+    temporal             = characteristics.get("temporal", {})
+    per_table_volumes    = characteristics.get("per_table_volumes", {})
+    children_per_parent  = int(characteristics.get("children_per_parent", 3))
 
     all_rels = relationships or schema.get("relationships", [])
 
@@ -302,6 +376,17 @@ def generate_data(
     name_to_table = {t["table_name"]: t for t in tables}
     ordered = [name_to_table[n] for n in ordered_names if n in name_to_table]
 
+    # Per-table row counts — children in many:1 relationships scale up
+    table_volumes = _compute_table_volumes(
+        table_names         = table_names,
+        all_rels            = all_rels,
+        parent_to_children  = adj,
+        base_volume         = volume,
+        per_table_volumes   = per_table_volumes,
+        children_per_parent = children_per_parent,
+        preview             = preview,
+    )
+
     pk_cache: Dict[str, List[Any]] = {}
     fk_map:   Dict[str, Dict[str, Any]] = {}
     for r in all_rels:
@@ -316,7 +401,7 @@ def generate_data(
     for tbl in ordered:
         tname = tbl["table_name"]
         cols  = tbl["columns"]
-        n     = volume
+        n     = table_volumes.get(tname, volume)
 
         # Pre-compute distributed columns (enum / boolean with explicit distribution)
         precomputed: Dict[str, List[Any]] = {}

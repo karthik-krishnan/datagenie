@@ -289,10 +289,14 @@ class TestManyToManyJoin:
         for enroll in data["enrollments"]:
             assert enroll["course_id"] in course_ids
 
-    def test_junction_table_has_correct_volume(self):
+    def test_junction_table_scales_with_parents(self):
+        """Enrollments are depth-1 children of both students and courses → 3× volume."""
         schema = self._schema()
-        data = generate_data(schema, {}, {}, self._rels(), volume=15, llm_settings=DEMO_SETTINGS)
-        assert len(data["enrollments"]) == 15
+        data = generate_data(schema, {}, {}, self._rels(), volume=10, llm_settings=DEMO_SETTINGS)
+        assert len(data["students"])    == 10
+        assert len(data["courses"])     == 10
+        # enrollments has inbound many_to_one FKs → scaled up (3× by default)
+        assert len(data["enrollments"]) == 30
 
     def test_all_three_tables_present(self):
         schema = self._schema()
@@ -347,12 +351,17 @@ class TestMultiHopChainJoin:
         data = generate_data(schema, {}, {}, self._rels(), volume=10, llm_settings=DEMO_SETTINGS)
         assert "users" in data and "orders" in data and "order_items" in data
 
-    def test_all_tables_have_correct_volume(self):
+    def test_volumes_scale_by_depth(self):
+        """
+        users (depth 0) → volume
+        orders (depth 1) → volume × 3
+        order_items (depth 2) → volume × 3²
+        """
         schema = self._schema()
-        data = generate_data(schema, {}, {}, self._rels(), volume=8, llm_settings=DEMO_SETTINGS)
-        assert len(data["users"])       == 8
-        assert len(data["orders"])      == 8
-        assert len(data["order_items"]) == 8
+        data = generate_data(schema, {}, {}, self._rels(), volume=5, llm_settings=DEMO_SETTINGS)
+        assert len(data["users"])       == 5
+        assert len(data["orders"])      == 15   # 5 × 3
+        assert len(data["order_items"]) == 45   # 5 × 9
 
 
 class TestJoinEdgeCases:
@@ -393,3 +402,67 @@ class TestJoinEdgeCases:
         # Should not raise — one direction will miss FKs but generation completes
         data = generate_data(schema, {}, {}, rels, volume=5, llm_settings=DEMO_SETTINGS)
         assert "a" in data and "b" in data
+
+
+# ─── Per-table volume scaling ─────────────────────────────────────────────────
+
+class TestVolumeScaling:
+
+    def _users_orders_schema(self):
+        return _make_schema(
+            ("users",  [_col("id", "integer"), _col("name")]),
+            ("orders", [_col("id", "integer"), _col("user_id", "integer"), _col("total", "float")]),
+        )
+
+    def _rels(self):
+        return [{"source_table": "orders", "source_column": "user_id",
+                 "target_table": "users",  "target_column": "id",
+                 "cardinality": "many_to_one", "confidence": 0.9}]
+
+    def test_default_3x_multiplier_for_child(self):
+        data = generate_data(self._users_orders_schema(), {}, {}, self._rels(),
+                             volume=10, llm_settings=DEMO_SETTINGS)
+        assert len(data["users"])  == 10
+        assert len(data["orders"]) == 30   # 10 × 3
+
+    def test_custom_children_per_parent(self):
+        chars = {"children_per_parent": 5}
+        data = generate_data(self._users_orders_schema(), chars, {}, self._rels(),
+                             volume=10, llm_settings=DEMO_SETTINGS)
+        assert len(data["users"])  == 10
+        assert len(data["orders"]) == 50   # 10 × 5
+
+    def test_per_table_volumes_override(self):
+        chars = {"per_table_volumes": {"users": 20, "orders": 100}}
+        data = generate_data(self._users_orders_schema(), chars, {}, self._rels(),
+                             volume=5, llm_settings=DEMO_SETTINGS)
+        assert len(data["users"])  == 20
+        assert len(data["orders"]) == 100
+
+    def test_no_relationships_all_tables_same_volume(self):
+        schema = _make_schema(
+            ("a", [_col("id", "integer")]),
+            ("b", [_col("id", "integer")]),
+        )
+        data = generate_data(schema, {}, {}, [], volume=7, llm_settings=DEMO_SETTINGS)
+        assert len(data["a"]) == 7
+        assert len(data["b"]) == 7
+
+    def test_one_to_one_child_same_volume_as_parent(self):
+        schema = _make_schema(
+            ("users",    [_col("id", "integer")]),
+            ("profiles", [_col("id", "integer"), _col("user_id", "integer")]),
+        )
+        rels = [{"source_table": "profiles", "source_column": "user_id",
+                 "target_table": "users",    "target_column": "id",
+                 "cardinality": "one_to_one", "confidence": 0.9}]
+        data = generate_data(schema, {}, {}, rels, volume=10, llm_settings=DEMO_SETTINGS)
+        assert len(data["users"])    == 10
+        assert len(data["profiles"]) == 10   # 1:1 → no scaling
+
+    def test_preview_mode_all_tables_get_volume(self):
+        """Preview always uses base volume for every table — no scaling."""
+        data = generate_data(self._users_orders_schema(), {}, {}, self._rels(),
+                             volume=5, llm_settings=DEMO_SETTINGS, preview=True)
+        assert len(data["users"])  == 5
+        assert len(data["orders"]) == 5
