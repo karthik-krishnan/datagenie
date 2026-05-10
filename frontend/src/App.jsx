@@ -189,6 +189,18 @@ export default function App() {
     }
   };
 
+  const providerLabel = {
+    anthropic: "Anthropic",
+    openai:    "OpenAI",
+    azure:     "Azure OpenAI",
+    google:    "Google",
+    ollama:    "Ollama",
+    demo:      "Demo",
+  }[llmSettings?.provider] ?? llmSettings?.provider ?? "Demo";
+
+  const isDemo      = !llmSettings?.provider || llmSettings.provider === "demo";
+  const modelLabel  = !isDemo && llmSettings?.model ? llmSettings.model : null;
+
   return (
     <div className="min-h-screen bg-white text-gray-900 flex flex-col">
       <header className="border-b border-gray-200 px-6 py-3 flex items-center justify-between bg-white">
@@ -199,17 +211,33 @@ export default function App() {
         >
           <span>🪄</span> DataGenie
         </button>
-        <button
-          onClick={() => setShowSettings(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 border border-gray-200 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
-          title="LLM Provider Settings"
-        >
-          <span>⚙️</span>
-          <span>Settings</span>
-          {llmSettings?.provider && llmSettings.provider !== "demo" && (
-            <span className="ml-0.5 w-2 h-2 rounded-full bg-green-400 inline-block" title={`Connected: ${llmSettings.provider}`} />
-          )}
-        </button>
+
+        <div className="flex items-center gap-3">
+          {/* AI provider badge — subtle, clickable to open settings */}
+          <button
+            onClick={() => setShowSettings(true)}
+            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            title="Change AI provider"
+          >
+            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isDemo ? "bg-amber-400" : "bg-emerald-400"}`} />
+            <span className="font-medium">{providerLabel}</span>
+            {modelLabel && (
+              <span className="text-gray-300">·</span>
+            )}
+            {modelLabel && (
+              <span className="truncate max-w-[140px]">{modelLabel}</span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setShowSettings(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 border border-gray-200 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+            title="LLM Provider Settings"
+          >
+            <span>⚙️</span>
+            <span>Settings</span>
+          </button>
+        </div>
       </header>
 
       <div className="flex flex-1">
