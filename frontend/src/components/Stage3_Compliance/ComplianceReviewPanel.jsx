@@ -128,6 +128,7 @@ export default function ComplianceReviewPanel({
 }) {
   const [step, setStep] = useState("select");            // "select" | "fields"
   const [normalizingFields, setNormalizingFields] = useState({}); // fieldName → true while pending
+  const [ruleWarnings, setRuleWarnings] = useState({});           // fieldName → warning string
 
   // ── Step 1: Framework selection ──────────────────────────────────────────
   const toggleFramework = (id) => {
@@ -190,15 +191,35 @@ export default function ComplianceReviewPanel({
     };
     onUpdate(next);
 
+    // Clear any stale warning whenever the field is touched
+    setRuleWarnings((prev) => {
+      if (!prev[fieldName]) return prev;
+      const copy = { ...prev };
+      delete copy[fieldName];
+      return copy;
+    });
+
     // If this is a custom rule text, kick off background normalisation
     if (patch.action === "Custom" && patch.custom_rule) {
       setNormalizingFields((prev) => ({ ...prev, [fieldName]: true }));
       try {
         const result = await api.normalizeRule(patch.custom_rule);
         if (result?.masking_op) {
+          // Success — store the structured op and clear any warning
           onUpdate((prev) => ({
             ...prev,
             [fieldName]: { ...(prev[fieldName] || {}), masking_op: result.masking_op },
+          }));
+          setRuleWarnings((prev) => {
+            const copy = { ...prev };
+            delete copy[fieldName];
+            return copy;
+          });
+        } else {
+          // LLM couldn't parse it — surface a helpful hint
+          setRuleWarnings((prev) => ({
+            ...prev,
+            [fieldName]: "Couldn't parse this rule automatically. Try rephrasing as e.g. \"show last 4 digits\", \"mask first 6 chars\", or \"redact\".",
           }));
         }
       } catch (_) {
@@ -379,18 +400,26 @@ export default function ComplianceReviewPanel({
                 </div>
 
                 {rule.custom_rule && (
-                  <div className="text-xs bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-start gap-2">
-                    <span className="text-amber-800 flex-1">📋 {rule.custom_rule}</span>
-                    {normalizingFields[col.name] ? (
-                      <span className="text-amber-500 whitespace-nowrap animate-pulse">⚙ parsing…</span>
-                    ) : rule.masking_op ? (
-                      <span
-                        className="text-green-600 whitespace-nowrap"
-                        title={`Op: ${rule.masking_op.type}${rule.masking_op.n != null ? `, n=${rule.masking_op.n}` : ""}`}
-                      >
-                        ✓ structured
-                      </span>
-                    ) : null}
+                  <div className="space-y-1.5">
+                    <div className="text-xs bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-start gap-2">
+                      <span className="text-amber-800 flex-1">📋 {rule.custom_rule}</span>
+                      {normalizingFields[col.name] ? (
+                        <span className="text-amber-500 whitespace-nowrap animate-pulse">⚙ parsing…</span>
+                      ) : rule.masking_op ? (
+                        <span
+                          className="text-green-600 whitespace-nowrap"
+                          title={`Op: ${rule.masking_op.type}${rule.masking_op.n != null ? `, n=${rule.masking_op.n}` : ""}`}
+                        >
+                          ✓ structured
+                        </span>
+                      ) : null}
+                    </div>
+                    {ruleWarnings[col.name] && (
+                      <div className="text-xs bg-red-50 border border-red-200 rounded-lg px-3 py-2 flex items-start gap-1.5 text-red-700">
+                        <span className="mt-0.5 shrink-0">⚠️</span>
+                        <span>{ruleWarnings[col.name]}</span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
