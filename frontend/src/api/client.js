@@ -72,6 +72,13 @@ export const api = {
   useProfile: (id) =>
     fetch(`${BASE}/profiles/${id}/use`, { method: "POST" }).then(handle),
 
+  testConnection: (provider, apiKey, model, extraConfig) =>
+    fetch(`${BASE}/settings/test`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider, api_key: apiKey, model, extra_config: extraConfig }),
+    }).then(handle),
+
   normalizeRule: (ruleText) => {
     const llm = getLLMConfig();
     return fetch(`${BASE}/schema/normalize-rule`, {
