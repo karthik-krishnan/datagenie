@@ -1,0 +1,23 @@
+version: "3.9"
+
+# Development override — hot reload for both frontend and backend
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+
+services:
+  backend:
+    volumes:
+      - ./backend:/app          # mount source so code changes are live
+      - uploads:/app/uploads
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3001:5173"            # Vite dev server port (3000 may be used by prod)
+    volumes:
+      - ./frontend:/app        # mount source for HMR
+      - /app/node_modules      # keep container node_modules isolated
+    environment:
+      - VITE_API_URL=http://localhost:8000

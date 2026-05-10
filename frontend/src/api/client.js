@@ -1,0 +1,80 @@
+const BASE = "/api";
+
+async function handle(res) {
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try {
+      const data = await res.json();
+      msg = data.detail || JSON.stringify(data);
+    } catch (_) {}
+    throw new Error(msg);
+  }
+  const ct = res.headers.get("content-type") || "";
+  if (ct.includes("application/json")) return res.json();
+  return res;
+}
+
+export const api = {
+  createSession: () =>
+    fetch(`${BASE}/sessions/`, { method: "POST" }).then(handle),
+
+  inferSchema: (files, contextText, sessionId) => {
+    const fd = new FormData();
+    for (const f of files) fd.append("files", f);
+    fd.append("context_text", contextText || "");
+    if (sessionId) fd.append("session_id", sessionId);
+    return fetch(`${BASE}/schema/infer`, { method: "POST", body: fd }).then(handle);
+  },
+
+  getSettings: () => fetch(`${BASE}/settings/`).then(handle),
+
+  saveSettings: (payload) =>
+    fetch(`${BASE}/settings/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }).then(handle),
+
+  preview: (payload) =>
+    fetch(`${BASE}/generate/preview`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }).then(handle),
+
+  listProfiles: () => fetch(`${BASE}/profiles/`).then(handle),
+  getProfile: (id) => fetch(`${BASE}/profiles/${id}`).then(handle),
+  createProfile: (data) =>
+    fetch(`${BASE}/profiles/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }).then(handle),
+  updateProfile: (id, data) =>
+    fetch(`${BASE}/profiles/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }).then(handle),
+  deleteProfile: (id) =>
+    fetch(`${BASE}/profiles/${id}`, { method: "DELETE" }).then(handle),
+  useProfile: (id) =>
+    fetch(`${BASE}/profiles/${id}/use`, { method: "POST" }).then(handle),
+
+  generate: async (payload) => {
+    const res = await fetch(`${BASE}/generate/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const t = await res.text();
+      throw new Error(t || `HTTP ${res.status}`);
+    }
+    const blob = await res.blob();
+    const cd = res.headers.get("content-disposition") || "";
+    const m = cd.match(/filename="?([^";]+)"?/i);
+    const filename = m ? m[1] : "test_data.bin";
+    return { blob, filename };
+  },
+};
