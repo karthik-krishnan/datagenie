@@ -12,8 +12,8 @@ DataGenie is a full-stack application that generates realistic, compliant synthe
 - **Multi-table schema** — infers related tables from context (e.g., `customers → orders → order_items`) with FK relationships and suggested cardinality
 - **Semantic type detection** — 100+ field catalog maps column names to real-world types (`email`, `phone`, `ssn`, `iban`, `dob`, `job_title`, `company_name`, etc.)
 
-### Starter Templates (Demo Mode)
-Click a card to instantly load a fully-configured multi-table schema — no LLM key needed:
+### Starter Templates
+Click a card to instantly load a fully-configured multi-table schema. Templates work with **any LLM provider** (including Demo mode) — use them as a starting point, then refine with natural language or by editing fields directly.
 
 | Card | Schema | Frameworks |
 |------|--------|-----------|
@@ -21,9 +21,10 @@ Click a card to instantly load a fully-configured multi-table schema — no LLM 
 | 🏥 **Healthcare Patients** | `patients → visits + prescriptions` | HIPAA, PII, GDPR |
 | 👩‍💼 **HR & Payroll** | `employees → leave_requests` | SOX, PII, GDPR |
 | 🎓 **Student Records** | `students → enrollments` | FERPA, PII, GDPR |
+| 🏦 **Banking & Accounts** | `customers → accounts → transactions + loans` | PCI, GLBA, SOX, PII |
 
 ### Compliance & Masking
-- **7 regulatory frameworks** — PII, PCI DSS, HIPAA, GDPR, CCPA, SOX, FERPA
+- **8 regulatory frameworks** — PII, PCI DSS, HIPAA, GDPR, CCPA, SOX, FERPA, GLBA
 - **Per-field masking actions** — `fake_realistic`, `redact`, `hash`, `partial_mask`, `tokenize`, `age_shift`, `generalize`
 - **Custom masking rules** — write plain-English rules per field (*"replace with last 4 digits only"*) that are normalised to structured masking ops via LLM
 - **Confidence scores** — LLM classifies each field and reports confidence; rule-based catalog is the fallback
@@ -118,7 +119,7 @@ datagenie/
 │       ├── context_extractor.py     # NL → structured schema params
 │       ├── compliance_detector.py   # 100+ field catalog, 7 frameworks, LLM batch
 │       ├── data_generator.py        # Faker-based synthetic data engine
-│       ├── demo_templates.py        # 4 multi-table + 4 single-table canned schemas
+│       ├── demo_templates.py        # 5 multi-table + 4 single-table canned schemas
 │       ├── output_formatter.py      # CSV/TSV/JSON/JSONL/Excel/XML/YAML/Parquet
 │       ├── masking.py               # Plain-English rule → structured MaskingOp
 │       ├── schema_inferrer.py       # File-based column type + stats inference
@@ -141,7 +142,7 @@ Open **Settings (⚙️)** and choose your provider. Configuration is stored in 
 | **Azure OpenAI** | Requires `endpoint` and `deployment` in Extra Config |
 | **Google** | Gemini 1.5 Pro / Flash |
 | **Ollama** | Local models (e.g. `llama3`), no API key needed |
-| **Demo** | No API key — uses pre-built starter templates only |
+| **Demo** | No API key — rule-based inference only, no LLM calls |
 
 ---
 
@@ -188,5 +189,5 @@ Open **Settings (⚙️)** and choose your provider. Configuration is stored in 
 ## 🗒 Notes
 
 - **No data leaves your environment** when using Ollama or if you self-host the backend. When using cloud LLM providers, only column names and sample values are sent (never full dataset rows).
-- **Demo mode** is fully offline — all 8 starter schemas are built-in and require no API calls.
+- **Starter templates** are available in all modes — load any template and refine it with natural language or manual edits. In Demo mode, inference uses rule-based detection (no LLM calls required).
 - The `/api/schema/infer` endpoint **never falls back to demo templates**. Starter cards use a dedicated `/api/schema/demo` endpoint. Free-form text always runs real inference (rule-based when in demo mode, LLM when configured).
