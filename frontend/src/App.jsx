@@ -230,7 +230,8 @@ export default function App() {
           className="text-lg font-semibold flex items-center gap-2 hover:text-indigo-600 transition-colors"
           title="Back to home"
         >
-          <span>🪄</span> DataGenie
+          <img src="/favicon.svg" alt="DataGenie" className="w-8 h-8" />
+          DataGenie
         </button>
 
         <div className="flex items-center gap-3">
