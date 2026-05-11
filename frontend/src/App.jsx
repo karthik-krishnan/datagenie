@@ -468,7 +468,12 @@ export default function App() {
                 <h2 className="text-xl font-semibold">Relationships</h2>
                 <p className="text-sm text-gray-500 mt-1">Confirm or edit detected relationships between tables.</p>
               </div>
-              <RelationshipMapper schema={inferredSchema} relationships={relationships} onUpdate={setRelationships} />
+              <RelationshipMapper
+                schema={inferredSchema}
+                relationships={relationships}
+                onUpdate={setRelationships}
+                aiRelationships={inferredSchema?.relationships || []}
+              />
               <div className="flex justify-between">
                 <button onClick={() => setStage(prevStage(4))} className="px-5 py-2 rounded-lg border border-gray-300 hover:bg-gray-50">Back</button>
                 <button onClick={() => setStage(nextStage(4))} className="px-5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">Continue</button>

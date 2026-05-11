@@ -8,6 +8,7 @@
  * - Duplicate-pair validation fires for existing rows.
  * - Adding a new relationship via the "Add" form works end-to-end.
  * - Removing a row calls onUpdate without that row.
+ * - Reset to AI suggestions banner appears when dirty; resets correctly.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
@@ -60,12 +61,13 @@ function getSelectsInRow(rowIndex) {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function renderMapper(relationships = [], onUpdate = vi.fn()) {
+function renderMapper(relationships = [], onUpdate = vi.fn(), aiRelationships = []) {
   return render(
     <RelationshipMapper
       schema={SCHEMA}
       relationships={relationships}
       onUpdate={onUpdate}
+      aiRelationships={aiRelationships}
     />,
   );
 }
@@ -385,5 +387,91 @@ describe("cardinality picker", () => {
 
     const lastCall = onUpdate.mock.calls[onUpdate.mock.calls.length - 1][0];
     expect(lastCall[0].cardinality).toBe("many_to_many");
+  });
+});
+
+// ── Reset to AI suggestions ───────────────────────────────────────────────────
+
+describe("reset to AI suggestions", () => {
+  it("does NOT show the reset banner when relationships match aiRelationships", () => {
+    renderMapper([...TWO_RELS], vi.fn(), [...TWO_RELS]);
+    expect(screen.queryByText(/reset to ai suggestions/i)).not.toBeInTheDocument();
+  });
+
+  it("does NOT show the reset banner when no aiRelationships are provided", () => {
+    renderMapper([...TWO_RELS], vi.fn(), []);
+    expect(screen.queryByText(/reset to ai suggestions/i)).not.toBeInTheDocument();
+  });
+
+  it("shows the reset banner when relationships differ from aiRelationships", () => {
+    // Start with TWO_RELS as AI baseline, but pass only one as current
+    renderMapper([TWO_RELS[0]], vi.fn(), [...TWO_RELS]);
+    expect(screen.getByText(/reset to ai suggestions/i)).toBeInTheDocument();
+    expect(screen.getByText(/you've edited/i)).toBeInTheDocument();
+  });
+
+  it("clicking reset calls onUpdate with the original aiRelationships", () => {
+    const onUpdate = vi.fn();
+    // User has removed one relationship — current has only [0], AI had both
+    renderMapper([TWO_RELS[0]], onUpdate, [...TWO_RELS]);
+
+    fireEvent.click(screen.getByRole("button", { name: /reset to ai suggestions/i }));
+
+    expect(onUpdate).toHaveBeenCalledWith(TWO_RELS);
+  });
+
+  it("banner disappears after reset", () => {
+    const onUpdate = vi.fn((updated) => {
+      // Simulate the parent re-rendering with the reset relationships
+      rerender(
+        <RelationshipMapper
+          schema={SCHEMA}
+          relationships={updated}
+          onUpdate={onUpdate}
+          aiRelationships={[...TWO_RELS]}
+        />,
+      );
+    });
+
+    const { rerender } = render(
+      <RelationshipMapper
+        schema={SCHEMA}
+        relationships={[TWO_RELS[0]]}
+        onUpdate={onUpdate}
+        aiRelationships={[...TWO_RELS]}
+      />,
+    );
+
+    expect(screen.getByText(/reset to ai suggestions/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /reset to ai suggestions/i }));
+    expect(screen.queryByText(/reset to ai suggestions/i)).not.toBeInTheDocument();
+  });
+
+  it("shows the banner when a row is removed", () => {
+    const onUpdate = vi.fn();
+    renderMapper([...TWO_RELS], onUpdate, [...TWO_RELS]);
+
+    // Remove first row
+    const removes = screen.getAllByRole("button", { name: /remove/i });
+    fireEvent.click(removes[0]);
+
+    // onUpdate was called with one fewer relationship — simulate re-render
+    const updated = onUpdate.mock.calls[0][0];
+    expect(updated).toHaveLength(1);
+    // The dirty check: updated !== aiRelationships so banner would appear
+    expect(JSON.stringify(updated)).not.toBe(JSON.stringify(TWO_RELS));
+  });
+
+  it("reset also closes any open draft form", () => {
+    const onUpdate = vi.fn();
+    renderMapper([TWO_RELS[0]], onUpdate, [...TWO_RELS]);
+
+    // Open draft form first
+    fireEvent.click(screen.getByText(/\+ add relationship/i));
+    expect(screen.getByRole("button", { name: /cancel/i })).toBeInTheDocument();
+
+    // Reset should close the draft
+    fireEvent.click(screen.getByRole("button", { name: /reset to ai suggestions/i }));
+    expect(screen.queryByRole("button", { name: /cancel/i })).not.toBeInTheDocument();
   });
 });

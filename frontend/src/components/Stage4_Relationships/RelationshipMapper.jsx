@@ -93,11 +93,22 @@ function CardinalityPicker({ value, onChange }) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function RelationshipMapper({ schema, relationships, onUpdate }) {
+export default function RelationshipMapper({ schema, relationships, onUpdate, aiRelationships = [] }) {
   const [adding, setAdding]       = useState(false);
   const [draft, setDraft]         = useState({ source_table: "", source_column: "", target_table: "", target_column: "", cardinality: "many_to_one" });
   const [draftError, setDraftError] = useState(null);
   const [rowErrors, setRowErrors] = useState({});   // index → error string | null
+
+  // True when the user has diverged from the AI-detected relationships.
+  const isDirty = aiRelationships.length > 0 &&
+    JSON.stringify(relationships) !== JSON.stringify(aiRelationships);
+
+  const resetToAI = () => {
+    onUpdate(aiRelationships);
+    setAdding(false);
+    setDraftError(null);
+    setRowErrors({});
+  };
 
   const tables  = schema?.tables || [];
   const allTbls = tables.map((t) => t.table_name);
@@ -247,6 +258,19 @@ export default function RelationshipMapper({ schema, relationships, onUpdate }) 
 
   return (
     <div className="space-y-3">
+      {/* Reset banner — only visible when user has edited away from AI suggestions */}
+      {isDirty && (
+        <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5">
+          <span className="text-sm text-amber-800">You've edited the AI-detected relationships.</span>
+          <button
+            onClick={resetToAI}
+            className="text-sm text-amber-700 font-medium hover:text-amber-900 border border-amber-300 rounded-lg px-3 py-1 hover:bg-amber-100 transition"
+          >
+            ↺ Reset to AI suggestions
+          </button>
+        </div>
+      )}
+
       {relationships.length === 0 && !adding && (
         <p className="text-sm text-gray-400 py-1">No relationships detected. Add one below.</p>
       )}
