@@ -170,14 +170,15 @@ export default function ComplianceReviewPanel({
 
   const applyDefaults = () => {
     const next = { ...complianceRules };
+    // Always overwrite — this button is "reset all to AI recommendations",
+    // not just "fill gaps". Existing manual choices are intentionally replaced.
     for (const { col, compliance } of allSensitiveFields) {
-      if (!next[col.name]) {
-        next[col.name] = {
-          action: compliance.default_action || "fake_realistic",
-          custom_rule: null,
-          frameworks: compliance.frameworks || [],
-        };
-      }
+      next[col.name] = {
+        action: compliance.default_action || "fake_realistic",
+        custom_rule: null,
+        masking_op: null,
+        frameworks: compliance.frameworks || [],
+      };
     }
     onUpdate(next);
   };
@@ -341,9 +342,12 @@ export default function ComplianceReviewPanel({
             const rule            = complianceRules[col.name] || {};
             const preFilledCtx    = !!rule.custom_rule;
             const isCustom        = rule.action === "Custom" || (rule.action && !findAction(rule.action));
+            const explicitlySet   = !!rule.action;   // true once user clicks a chip or applies defaults
+            // Only pass a value to ChipSelector when explicitly set — otherwise no chip is highlighted,
+            // which makes "Apply recommended defaults" produce a visible change.
             const chipValue       = isCustom
               ? (rule.custom_rule || rule.action)
-              : labelFor(rule.action || compliance.default_action);
+              : explicitlySet ? labelFor(rule.action) : null;
             const fieldFws        = compliance.frameworks || [];
 
             return (
@@ -380,6 +384,24 @@ export default function ComplianceReviewPanel({
                     allowCustom
                     customPlaceholder="Describe how to handle this field..."
                   />
+                  {/* Hint row — shows AI recommendation until the user (or button) makes an explicit pick */}
+                  {!explicitlySet && compliance.default_action && (
+                    <p className="text-xs text-gray-400 mt-2">
+                      AI recommends:{" "}
+                      <span className="text-indigo-500 font-medium">
+                        {labelFor(compliance.default_action)}
+                      </span>
+                      {" "}— click above to confirm, or use{" "}
+                      <button
+                        type="button"
+                        onClick={applyDefaults}
+                        className="underline text-indigo-500 hover:text-indigo-700"
+                      >
+                        Apply recommended defaults
+                      </button>
+                      {" "}for all fields.
+                    </p>
+                  )}
                 </div>
 
                 {rule.custom_rule && (
