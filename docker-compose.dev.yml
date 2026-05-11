@@ -1,7 +1,17 @@
 version: "3.9"
 
-# Development override — hot reload for both frontend and backend
-# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+# Development override — hot reload for both frontend and backend.
+# Backend: ./backend is volume-mounted into the container; uvicorn --reload
+#          picks up Python changes instantly — NO rebuild needed.
+# Frontend: Vite HMR via Dockerfile.dev — run separately with `npm run dev`
+#           or include this file to also containerise the frontend dev server.
+#
+# Usage (backend + postgres only, frontend natively):
+#   docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build backend
+#   cd frontend && npm run dev
+#
+# Usage (everything in Docker):
+#   docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 
 services:
   backend:

@@ -58,7 +58,7 @@ Click a card to instantly load a fully-configured multi-table schema. Templates 
 ### Prerequisites
 - Docker & Docker Compose
 
-### Run with Docker (recommended)
+### Production (Docker)
 
 ```bash
 git clone git@github.com:karthik-krishnan/datagenie.git
@@ -66,18 +66,33 @@ cd datagenie
 docker-compose up --build
 ```
 
-Open **http://localhost:3001**  
-API docs: **http://localhost:8000/docs**
+Open **http://localhost:3001** | API docs: **http://localhost:8000/docs**
 
-### Run backend locally (for development)
+> ⚠️ `docker-compose.yml` bakes code into the image — you must `docker-compose build backend && docker-compose up -d backend` after every backend Python change.
+
+### Development (hot reload for both frontend and backend)
+
+Use the dev overlay — backend source is volume-mounted and uvicorn runs with `--reload`, so Python changes are picked up instantly without rebuilding:
 
 ```bash
-# Terminal 1 — backend (FastAPI with hot reload)
+# Start postgres + backend with hot reload
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+
+# Frontend with Vite HMR (run separately on the host)
+cd frontend
+npm install
+npm run dev        # → http://localhost:3001
+```
+
+Or run everything natively without Docker:
+
+```bash
+# Terminal 1 — backend
 cd backend
 pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
 
-# Terminal 2 — frontend (Vite HMR)
+# Terminal 2 — frontend
 cd frontend
 npm install
 npm run dev        # → http://localhost:3001
