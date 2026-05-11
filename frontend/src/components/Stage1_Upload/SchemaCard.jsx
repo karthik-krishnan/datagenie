@@ -337,10 +337,10 @@ export default function SchemaCard({ table, onChange }) {
                   <td className="px-4 py-2 text-right">
                     <button
                       onClick={() => deleteColumn(i)}
-                      className="opacity-0 group-hover/row:opacity-100 text-gray-300 hover:text-red-400 transition-all text-base leading-none"
+                      className="text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all rounded px-1.5 py-0.5 text-sm font-medium"
                       title="Remove column"
                     >
-                      ×
+                      ✕
                     </button>
                   </td>
                 </tr>
