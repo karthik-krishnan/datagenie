@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAppStore } from "../../store/appStore.js";
-import { getLLMConfig } from "../../utils/llmStorage.js";
+import { getLLMConfig, getProviderConfig } from "../../utils/llmStorage.js";
 import { api } from "../../api/client.js";
 import ProviderCard from "./ProviderCard.jsx";
 import Spinner from "../common/Spinner.jsx";
@@ -40,16 +40,15 @@ export default function SettingsModal() {
   const keyReady = !needsKey || apiKey.trim().length > 0;
 
   const selectProvider = (id) => {
-    if (id === provider) return; // already selected — don't reset model or key
-    const saved = getLLMConfig();
+    if (id === provider) return; // already selected — no-op
+    // Load this provider's previously saved config (key, model, extras)
+    const saved = getProviderConfig(id);
     setProvider(id);
-    // Use the saved model if switching back to the previously-saved provider,
-    // otherwise default to the first model in the list.
-    setModel(saved.provider === id ? (saved.model || "") : (PROVIDERS.find((x) => x.id === id)?.models?.[0] || ""));
-    setTestResult(null);
-    // Restore saved key when switching back to the saved provider; otherwise clear
-    setApiKey(saved.provider === id ? (saved.api_key || "") : "");
+    setApiKey(saved.api_key || "");
+    setModel(saved.model || PROVIDERS.find((x) => x.id === id)?.models?.[0] || "");
+    setExtra({ endpoint: "", deployment: "", base_url: "http://localhost:11434", ...(saved.extra_config || {}) });
     setEditingKey(false);
+    setTestResult(null);
   };
 
   const testConnection = async () => {
@@ -67,12 +66,10 @@ export default function SettingsModal() {
   };
 
   const save = () => {
-    const prev = getLLMConfig();
-    // If the key field is blank (e.g. user clicked Change but didn't type a new key),
-    // preserve whatever was previously saved for this provider rather than wiping it.
-    const finalKey = apiKey.trim() || (prev.provider === provider ? prev.api_key || "" : "");
-    const config = { provider, api_key: finalKey, model, extra_config: extra };
-    setLLMSettings(config); // writes localStorage + updates store
+    // If the user clicked "Change" but left the field blank, preserve the previously saved key.
+    const prevKey = getProviderConfig(provider).api_key || "";
+    const config = { provider, api_key: apiKey.trim() || prevKey, model, extra_config: extra };
+    setLLMSettings(config); // writes per-provider to localStorage + updates store
     setShowSettings(false);
   };
 

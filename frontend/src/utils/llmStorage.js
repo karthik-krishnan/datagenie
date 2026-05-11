@@ -2,19 +2,70 @@ const LS_KEY = "datagenie_llm";
 
 const DEFAULT = { provider: "demo", api_key: "", model: "", extra_config: {} };
 
-export function getLLMConfig() {
+// Storage format (new):
+// { provider: "azure", configs: { azure: { api_key, model, extra_config }, anthropic: {...}, ... } }
+//
+// Old flat format is migrated transparently on first read/write.
+
+function _read() {
   try {
     const raw = localStorage.getItem(LS_KEY);
-    if (!raw) return { ...DEFAULT };
-    return { ...DEFAULT, ...JSON.parse(raw) };
+    if (!raw) return { provider: "demo", configs: {} };
+    const stored = JSON.parse(raw);
+    // Migrate old flat format → per-provider configs
+    if (!stored.configs) {
+      const configs = {};
+      if (stored.provider) {
+        configs[stored.provider] = {
+          api_key: stored.api_key || "",
+          model: stored.model || "",
+          extra_config: stored.extra_config || {},
+        };
+      }
+      return { provider: stored.provider || "demo", configs };
+    }
+    return stored;
   } catch {
-    return { ...DEFAULT };
+    return { provider: "demo", configs: {} };
   }
 }
 
+// Returns the active provider's flattened config — shape expected by the rest of the app.
+export function getLLMConfig() {
+  const stored = _read();
+  const provider = stored.provider || "demo";
+  const cfg = stored.configs?.[provider] || {};
+  return {
+    provider,
+    api_key: cfg.api_key || "",
+    model: cfg.model || "",
+    extra_config: cfg.extra_config || {},
+  };
+}
+
+// Returns the saved config for a specific provider (used by the settings modal
+// when switching provider cards so each provider's key/model/extras are restored).
+export function getProviderConfig(provider) {
+  const stored = _read();
+  const cfg = stored.configs?.[provider] || {};
+  return {
+    api_key: cfg.api_key || "",
+    model: cfg.model || "",
+    extra_config: cfg.extra_config || {},
+  };
+}
+
+// Saves the current provider's config without touching other providers' entries.
 export function setLLMConfig(config) {
   try {
-    localStorage.setItem(LS_KEY, JSON.stringify(config));
+    const stored = _read();
+    const configs = { ...(stored.configs || {}) };
+    configs[config.provider] = {
+      api_key: config.api_key || "",
+      model: config.model || "",
+      extra_config: config.extra_config || {},
+    };
+    localStorage.setItem(LS_KEY, JSON.stringify({ provider: config.provider, configs }));
   } catch {
     // storage quota exceeded or private browsing — silently ignore
   }
