@@ -19,16 +19,22 @@ export default function SettingsModal() {
   const setShowSettings = useAppStore((s) => s.setShowSettings);
   const setLLMSettings = useAppStore((s) => s.setLLMSettings);
 
-  const [provider, setProvider] = useState("demo");
-  const [apiKey, setApiKey] = useState("");
+  // Lazy-init from localStorage so the masked badge is visible on the very first render
+  // (rather than flashing an empty input while the effect fires).
+  const [provider, setProvider] = useState(() => getLLMConfig().provider || "demo");
+  const [apiKey, setApiKey] = useState(() => getLLMConfig().api_key || "");
   const [editingKey, setEditingKey] = useState(false); // true = show input, false = show masked badge
-  const [model, setModel] = useState("");
-  const [extra, setExtra] = useState({ endpoint: "", deployment: "", base_url: "http://localhost:11434" });
+  const [model, setModel] = useState(() => getLLMConfig().model || "");
+  const [extra, setExtra] = useState(() => {
+    const saved = getLLMConfig();
+    return { endpoint: "", deployment: "", base_url: "http://localhost:11434", ...(saved.extra_config || {}) };
+  });
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);
   const [err, setErr] = useState(null);
 
-  // Load from localStorage when modal opens
+  // Re-sync from localStorage each time the modal is (re-)opened.
+  // This discards any unsaved edits from the previous session.
   useEffect(() => {
     if (!showSettings) return;
     setTestResult(null);
@@ -48,11 +54,14 @@ export default function SettingsModal() {
   const keyReady = !needsKey || apiKey.trim().length > 0;
 
   const selectProvider = (id) => {
+    if (id === provider) return; // already selected — don't reset model or key
     const saved = getLLMConfig();
     setProvider(id);
-    setModel(PROVIDERS.find((x) => x.id === id)?.models?.[0] || "");
+    // Use the saved model if switching back to the previously-saved provider,
+    // otherwise default to the first model in the list.
+    setModel(saved.provider === id ? (saved.model || "") : (PROVIDERS.find((x) => x.id === id)?.models?.[0] || ""));
     setTestResult(null);
-    // If switching to a provider that already has a saved key, restore it; otherwise clear
+    // Restore saved key when switching back to the saved provider; otherwise clear
     setApiKey(saved.provider === id ? (saved.api_key || "") : "");
     setEditingKey(false);
   };
