@@ -60,6 +60,14 @@ const ALL_FRAMEWORKS = [
     selectedColor: "border-green-500 bg-green-100 ring-2 ring-green-400",
     desc: "Education records — student IDs, grades, transcripts, enrollment",
   },
+  {
+    id: "GLBA",
+    label: "GLBA",
+    icon: "🏦",
+    color: "border-emerald-300 bg-emerald-50 text-emerald-800",
+    selectedColor: "border-emerald-500 bg-emerald-100 ring-2 ring-emerald-400",
+    desc: "Gramm-Leach-Bliley Act — financial records, account numbers, credit scores, loan data",
+  },
 ];
 
 const FW_BADGE_COLOR = {
@@ -70,6 +78,7 @@ const FW_BADGE_COLOR = {
   CCPA:  "bg-cyan-100 text-cyan-700",
   SOX:   "bg-yellow-100 text-yellow-800",
   FERPA: "bg-green-100 text-green-700",
+  GLBA:  "bg-emerald-100 text-emerald-700",
 };
 
 const MASKING_ACTIONS = [

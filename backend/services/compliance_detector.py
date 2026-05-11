@@ -66,8 +66,8 @@ DOMAIN_SIGNALS: List[tuple] = [
      ["PII"]),
     (r"\bemployee|hr data|human resources|payroll|personnel|workforce|w-?2\b",
      ["PII", "SOX"]),
-    (r"\bfinancial\b|banking|bank account|iban|routing number|wire transfer",
-     ["PCI", "SOX"]),
+    (r"\bfinancial\b|banking|bank account|iban|routing number|wire transfer|glba|gramm.leach|loan|mortgage|credit score|kyc|aml",
+     ["PCI", "SOX", "GLBA"]),
 ]
 
 
@@ -145,12 +145,18 @@ FIELD_CATALOG: Dict[str, Dict] = {
     "cvc":              {"frameworks": ["PCI"],                  "field_type": "card_cvv",            "default_action": "redact"},
     "card_expiry":      {"frameworks": ["PCI"],                  "field_type": "card_expiry",         "default_action": "fake_realistic"},
     "expiry_date":      {"frameworks": ["PCI"],                  "field_type": "card_expiry",         "default_action": "fake_realistic"},
-    "account_number":   {"frameworks": ["PCI", "SOX"],          "field_type": "account_number",      "default_action": "format_preserving"},
-    "routing_number":   {"frameworks": ["PCI"],                  "field_type": "routing_number",      "default_action": "format_preserving"},
-    "iban":             {"frameworks": ["PCI", "GDPR"],         "field_type": "bank_account",        "default_action": "format_preserving"},
-    "bank_account":     {"frameworks": ["PCI"],                  "field_type": "bank_account",        "default_action": "format_preserving"},
-    "swift":            {"frameworks": ["PCI"],                  "field_type": "swift_bic",           "default_action": "format_preserving"},
-    "sort_code":        {"frameworks": ["PCI"],                  "field_type": "sort_code",           "default_action": "format_preserving"},
+    "account_number":   {"frameworks": ["PCI", "SOX", "GLBA"],  "field_type": "account_number",      "default_action": "format_preserving"},
+    "routing_number":   {"frameworks": ["PCI", "GLBA"],         "field_type": "routing_number",      "default_action": "format_preserving"},
+    "iban":             {"frameworks": ["PCI", "GDPR", "GLBA"], "field_type": "bank_account",        "default_action": "format_preserving"},
+    "bank_account":     {"frameworks": ["PCI", "GLBA"],         "field_type": "bank_account",        "default_action": "format_preserving"},
+    "swift":            {"frameworks": ["PCI", "GLBA"],         "field_type": "swift_bic",           "default_action": "format_preserving"},
+    "sort_code":        {"frameworks": ["PCI", "GLBA"],         "field_type": "sort_code",           "default_action": "format_preserving"},
+    "credit_score":     {"frameworks": ["GLBA", "PII"],         "field_type": "credit_score",        "default_action": "fake_realistic"},
+    "loan_id":          {"frameworks": ["GLBA", "SOX"],         "field_type": "loan_identifier",     "default_action": "format_preserving"},
+    "principal_amount": {"frameworks": ["SOX", "GLBA"],         "field_type": "loan_amount",         "default_action": "fake_realistic"},
+    "outstanding_balance": {"frameworks": ["SOX", "GLBA"],      "field_type": "loan_balance",        "default_action": "fake_realistic"},
+    "kyc_status":       {"frameworks": ["GLBA", "PII"],         "field_type": "kyc_status",          "default_action": "fake_realistic"},
+    "risk_rating":      {"frameworks": ["GLBA", "SOX"],         "field_type": "risk_rating",         "default_action": "fake_realistic"},
 
     # ── HIPAA ─────────────────────────────────────────────────────────────
     "diagnosis":        {"frameworks": ["HIPAA"],               "field_type": "medical_diagnosis",   "default_action": "fake_realistic"},

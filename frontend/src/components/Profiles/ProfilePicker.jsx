@@ -37,6 +37,14 @@ const DEMO_STARTERS = [
     contextKeyword: "student gpa academic enrollment FERPA",
     frameworks: ["FERPA", "PII", "GDPR"],
   },
+  {
+    id: "demo-banking",
+    title: "Banking & Accounts",
+    description: "Customers → Accounts → Transactions + Loans. PCI, GLBA, SOX compliance.",
+    emoji: "🏦",
+    contextKeyword: "bank account transaction loan kyc AML GLBA",
+    frameworks: ["PCI", "GLBA", "SOX", "PII"],
+  },
 ];
 
 const FW_COLORS = {
@@ -47,6 +55,7 @@ const FW_COLORS = {
   CCPA:  "bg-cyan-100 text-cyan-700",
   SOX:   "bg-yellow-100 text-yellow-800",
   FERPA: "bg-green-100 text-green-700",
+  GLBA:  "bg-emerald-100 text-emerald-700",
 };
 
 function FrameworkBadges({ complianceJson }) {
