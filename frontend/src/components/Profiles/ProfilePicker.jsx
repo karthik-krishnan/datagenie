@@ -162,7 +162,8 @@ export default function ProfilePicker() {
       <div className="bg-white border-b border-gray-200 px-8 py-5 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold flex items-center gap-2">
-            <span>🪄</span> DataGenie
+            <img src="/favicon.svg" alt="DataGenie" className="w-9 h-9" />
+            DataGenie
           </h1>
           <p className="text-sm text-gray-500 mt-0.5">
             AI-assisted intelligent test data generator
