@@ -103,15 +103,16 @@ export default function RelationshipMapper({ schema, relationships, onUpdate }) 
 
   // ── Edit existing row ───────────────────────────────────────────────────────
   const update = (i, patch) => {
-    let updated = { ...relationships[i], ...patch };
-    // When source table changes, clear everything downstream
-    if ("source_table" in patch) {
+    const current = relationships[i];
+    let updated = { ...current, ...patch };
+    // Only clear downstream when the value actually changed — re-selecting the
+    // same table must NOT wipe existing column/target selections.
+    if ("source_table" in patch && patch.source_table !== current.source_table) {
       updated.source_column = "";
       updated.target_table  = "";
       updated.target_column = "";
     }
-    // When target table changes, clear target column
-    if ("target_table" in patch) {
+    if ("target_table" in patch && patch.target_table !== current.target_table) {
       updated.target_column = "";
     }
     const err = validate(updated, relationships, i);
@@ -140,8 +141,12 @@ export default function RelationshipMapper({ schema, relationships, onUpdate }) 
 
   const updateDraft = (patch) => {
     let next = { ...draft, ...patch };
-    if ("source_table" in patch) { next.source_column = ""; next.target_table = ""; next.target_column = ""; }
-    if ("target_table" in patch)   next.target_column = "";
+    if ("source_table" in patch && patch.source_table !== draft.source_table) {
+      next.source_column = ""; next.target_table = ""; next.target_column = "";
+    }
+    if ("target_table" in patch && patch.target_table !== draft.target_table) {
+      next.target_column = "";
+    }
     setDraft(next);
     setDraftError(null);
   };
