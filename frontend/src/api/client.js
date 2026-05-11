@@ -12,7 +12,7 @@ async function handle(res) {
     let msg = `HTTP ${res.status}`;
     try {
       const data = await res.json();
-      msg = data.detail || JSON.stringify(data);
+      msg = typeof data.detail === "string" ? data.detail : JSON.stringify(data);
     } catch (_) {}
     throw new Error(msg);
   }
@@ -21,9 +21,27 @@ async function handle(res) {
   return res;
 }
 
+// Retry a fetch call up to `retries` times with exponential backoff.
+// Retries on network errors ("failed to fetch") and 502/503/504 (deploy restarts).
+async function fetchWithRetry(fn, retries = 2, delayMs = 2000) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const isNetworkError = err instanceof TypeError; // "failed to fetch"
+      const isServerError  = err?.message?.startsWith("HTTP 5");
+      if ((isNetworkError || isServerError) && attempt < retries) {
+        await new Promise((r) => setTimeout(r, delayMs * (attempt + 1)));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 export const api = {
   createSession: () =>
-    fetch(`${BASE}/sessions/`, { method: "POST" }).then(handle),
+    fetchWithRetry(() => fetch(`${BASE}/sessions/`, { method: "POST" }).then(handle)),
 
   inferSchema: (files, contextText, sessionId) => {
     const fd = new FormData();
@@ -58,7 +76,7 @@ export const api = {
     }).then(handle);
   },
 
-  listProfiles: () => fetch(`${BASE}/profiles/`).then(handle),
+  listProfiles: () => fetchWithRetry(() => fetch(`${BASE}/profiles/`).then(handle)),
   getProfile: (id) => fetch(`${BASE}/profiles/${id}`).then(handle),
   createProfile: (data) =>
     fetch(`${BASE}/profiles/`, {
