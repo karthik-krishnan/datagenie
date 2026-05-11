@@ -42,13 +42,22 @@ function FieldSelect({ label, value, onChange, options, placeholder, disabled })
       <select
         value={value}
         disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => {
+          const newVal = e.target.value;
+          // Guard against spurious onChange("") events that browsers fire when
+          // the option list is updated by React while a value is already selected.
+          if (!newVal && value) return;
+          onChange(newVal);
+        }}
         className={
           "border rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-indigo-500 w-full " +
           (disabled ? "border-gray-200 text-gray-400 cursor-not-allowed" : "border-gray-300")
         }
       >
-        {placeholder && <option value="">{placeholder}</option>}
+        {/* Only render the placeholder option when no value is selected — this
+            prevents the browser from "snapping" to the empty option when the
+            options list changes during a React re-render. */}
+        {(!value && placeholder) && <option value="">{placeholder}</option>}
         {options.map((o) => (
           <option key={o} value={o}>{o}</option>
         ))}
@@ -192,7 +201,7 @@ export default function RelationshipMapper({ schema, relationships, onUpdate }) 
               onChange={(v) => isNew ? updateDraft({ target_table: v }) : update(i, { target_table: v })}
               options={tgtOptions}
               placeholder={r.source_table ? "— table —" : "pick source first"}
-              disabled={!r.source_table}
+              disabled={!r.source_table || tgtOptions.length === 0}
             />
             <FieldSelect
               label="Column"
