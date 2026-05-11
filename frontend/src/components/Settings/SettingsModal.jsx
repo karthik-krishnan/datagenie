@@ -33,18 +33,23 @@ export default function SettingsModal() {
   const [testResult, setTestResult] = useState(null);
   const [err, setErr] = useState(null);
 
-  // Re-sync from localStorage each time the modal is (re-)opened.
-  // This discards any unsaved edits from the previous session.
+  // Sync state with localStorage whenever showSettings changes.
+  // Reset on CLOSE so state is already clean when the modal next renders —
+  // this prevents a blank-input flash caused by stale editingKey/apiKey state.
   useEffect(() => {
-    if (!showSettings) return;
+    const saved = getLLMConfig();
+    if (!showSettings) {
+      // Modal just closed — discard unsaved edits immediately
+      setProvider(saved.provider || "demo");
+      setModel(saved.model || "");
+      setExtra({ endpoint: "", deployment: "", base_url: "http://localhost:11434", ...(saved.extra_config || {}) });
+      setApiKey(saved.api_key || "");
+      setEditingKey(false);
+      return;
+    }
+    // Modal just opened — clear transient UI state (test result, errors)
     setTestResult(null);
     setErr(null);
-    const saved = getLLMConfig();
-    setProvider(saved.provider || "demo");
-    setModel(saved.model || "");
-    setExtra({ endpoint: "", deployment: "", base_url: "http://localhost:11434", ...(saved.extra_config || {}) });
-    setApiKey(saved.api_key || "");
-    setEditingKey(false);
   }, [showSettings]);
 
   if (!showSettings) return null;
