@@ -251,9 +251,11 @@ export default function RelationshipMapper({ schema, relationships, onUpdate }) 
         <p className="text-sm text-gray-400 py-1">No relationships detected. Add one below.</p>
       )}
 
-      {relationships.map((r, i) =>
-        renderRow({ r, i, isNew: false }),
-      )}
+      {relationships.map((r, i) => (
+        <div key={`${r.source_table}-${r.target_table}-${i}`}>
+          {renderRow({ r, i, isNew: false })}
+        </div>
+      ))}
 
       {adding
         ? renderRow({ r: draft, i: -1, isNew: true })
