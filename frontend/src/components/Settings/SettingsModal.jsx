@@ -67,7 +67,11 @@ export default function SettingsModal() {
   };
 
   const save = () => {
-    const config = { provider, api_key: apiKey.trim(), model, extra_config: extra };
+    const prev = getLLMConfig();
+    // If the key field is blank (e.g. user clicked Change but didn't type a new key),
+    // preserve whatever was previously saved for this provider rather than wiping it.
+    const finalKey = apiKey.trim() || (prev.provider === provider ? prev.api_key || "" : "");
+    const config = { provider, api_key: finalKey, model, extra_config: extra };
     setLLMSettings(config); // writes localStorage + updates store
     setShowSettings(false);
   };
