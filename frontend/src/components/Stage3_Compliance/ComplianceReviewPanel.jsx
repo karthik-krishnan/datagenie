@@ -142,29 +142,19 @@ export default function ComplianceReviewPanel({
   const noneSelected = selectedFrameworks.length === 0;
 
   // ── Step 2: Filtered field handling ─────────────────────────────────────
-  // Only show fields whose detected frameworks overlap with the user's selection
+  // ALL sensitive fields whose frameworks overlap the user's selection are shown.
+  // Previously fake_realistic fields were hidden in a read-only "auto-handled" pill
+  // list, which meant the user could never see or change them — fixed by showing
+  // everything here and letting the user override any field they want.
   const allSensitiveFields = [];
-  const autoFields = [];
 
   for (const t of schema?.tables || []) {
     for (const c of t.columns) {
       const compliance = c.pii || {};
       if (!compliance.is_sensitive && !compliance.is_pii) continue;
-
       const fieldFws = compliance.frameworks || [];
       const overlaps = selectedFrameworks.some((f) => fieldFws.includes(f));
-      const isCustomInContext = !!complianceRules[c.name]?.custom_rule;
-      const hasNonTrivialDefault = compliance.default_action && compliance.default_action !== "fake_realistic";
-      // Also check the action already stored in complianceRules (e.g. from demo templates or saved profiles)
-      const storedAction = complianceRules[c.name]?.action;
-      const hasNonTrivialStoredAction = !!(storedAction && storedAction !== "fake_realistic");
-
-      if (overlaps && (isCustomInContext || hasNonTrivialDefault || hasNonTrivialStoredAction)) {
-        allSensitiveFields.push({ table: t.table_name, col: c, compliance });
-      } else if (overlaps) {
-        autoFields.push({ table: t.table_name, col: c, compliance });
-      }
-      // Fields with no overlap are completely silent — not listed at all
+      if (overlaps) allSensitiveFields.push({ table: t.table_name, col: c, compliance });
     }
   }
 
@@ -312,13 +302,13 @@ export default function ComplianceReviewPanel({
         </button>
       </div>
 
-      {/* No fields require decisions */}
+      {/* No sensitive fields detected at all */}
       {allSensitiveFields.length === 0 && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-sm text-green-800">
-          <p className="font-medium">✓ No decisions needed — all fields will be auto-handled</p>
+          <p className="font-medium">✓ No sensitive fields detected</p>
           <p className="text-xs text-green-600 mt-1">
-            Every sensitive field under your selected frameworks will be generated with realistic synthetic values.
-            No masking or redaction is required for this dataset.
+            None of your columns were identified as sensitive under the selected frameworks.
+            Data will be generated as-is.
           </p>
         </div>
       )}
@@ -328,7 +318,7 @@ export default function ComplianceReviewPanel({
         <>
           <div className="flex justify-between items-center">
             <p className="text-sm text-gray-600">
-              {allSensitiveFields.length} field{allSensitiveFields.length !== 1 ? "s" : ""} need your input
+              {allSensitiveFields.length} sensitive field{allSensitiveFields.length !== 1 ? "s" : ""} — review or change how each is handled
             </p>
             <button
               onClick={applyDefaults}
@@ -342,12 +332,18 @@ export default function ComplianceReviewPanel({
             const rule            = complianceRules[col.name] || {};
             const preFilledCtx    = !!rule.custom_rule;
             const isCustom        = rule.action === "Custom" || (rule.action && !findAction(rule.action));
-            const explicitlySet   = !!rule.action;   // true once user clicks a chip or applies defaults
-            // Only pass a value to ChipSelector when explicitly set — otherwise no chip is highlighted,
-            // which makes "Apply recommended defaults" produce a visible change.
+            const explicitlySet   = !!rule.action;
+            const isTrivialDefault = !compliance.default_action || compliance.default_action === "fake_realistic";
+            // fake_realistic fields: show chip pre-selected (already safe, user can still override).
+            // Non-trivial fields (redact/mask/etc.): start unselected + show AI hint so "Apply
+            // recommended defaults" produces a visible confirmation click.
             const chipValue       = isCustom
               ? (rule.custom_rule || rule.action)
-              : explicitlySet ? labelFor(rule.action) : null;
+              : explicitlySet
+                ? labelFor(rule.action)
+                : isTrivialDefault
+                  ? labelFor(compliance.default_action || "fake_realistic")
+                  : null;
             const fieldFws        = compliance.frameworks || [];
 
             return (
@@ -384,8 +380,8 @@ export default function ComplianceReviewPanel({
                     allowCustom
                     customPlaceholder="Describe how to handle this field..."
                   />
-                  {/* Hint row — shows AI recommendation until the user (or button) makes an explicit pick */}
-                  {!explicitlySet && compliance.default_action && (
+                  {/* Hint for non-trivial fields only — until user confirms */}
+                  {!explicitlySet && !isTrivialDefault && compliance.default_action && (
                     <p className="text-xs text-gray-400 mt-2">
                       AI recommends:{" "}
                       <span className="text-indigo-500 font-medium">
@@ -433,29 +429,6 @@ export default function ComplianceReviewPanel({
         </>
       )}
 
-      {/* Auto-handled fields under selected frameworks */}
-      {autoFields.length > 0 && (
-        <div className={`rounded-xl border p-4 space-y-2 ${allSensitiveFields.length === 0 ? "border-green-200 bg-green-50" : "border-gray-100 bg-gray-50"}`}>
-          <p className={`text-xs font-medium ${allSensitiveFields.length === 0 ? "text-green-700" : "text-gray-500"}`}>
-            {autoFields.length} field{autoFields.length !== 1 ? "s" : ""} — auto-generated with realistic synthetic values
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {autoFields.map(({ col, compliance }) => {
-              const fieldFws = (compliance.frameworks || []).filter(f => selectedFrameworks.includes(f));
-              return (
-                <span key={col.name} className="inline-flex items-center gap-1 text-xs bg-white border border-gray-200 rounded-full px-2.5 py-1 text-gray-600 font-mono">
-                  {col.name}
-                  {fieldFws.map(fw => (
-                    <span key={fw} className={`text-xs px-1.5 py-0.5 rounded-full font-sans font-medium ${FW_BADGE_COLOR[fw] || "bg-gray-100 text-gray-600"}`}>
-                      {fw}
-                    </span>
-                  ))}
-                </span>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {/* Navigation */}
       <div className="flex justify-between pt-2">
