@@ -515,7 +515,7 @@ export default function App() {
         </main>
       </div>
 
-      <SettingsModal />
+      {showSettings && <SettingsModal />}
       <SaveProfileModal />
     </div>
   );

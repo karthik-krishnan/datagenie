@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useAppStore } from "../../store/appStore.js";
 import { getLLMConfig } from "../../utils/llmStorage.js";
 import { api } from "../../api/client.js";
@@ -15,7 +15,6 @@ const PROVIDERS = [
 ];
 
 export default function SettingsModal() {
-  const showSettings = useAppStore((s) => s.showSettings);
   const setShowSettings = useAppStore((s) => s.setShowSettings);
   const setLLMSettings = useAppStore((s) => s.setLLMSettings);
 
@@ -32,27 +31,9 @@ export default function SettingsModal() {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);
   const [err, setErr] = useState(null);
-
-  // Sync state with localStorage whenever showSettings changes.
-  // Reset on CLOSE so state is already clean when the modal next renders —
-  // this prevents a blank-input flash caused by stale editingKey/apiKey state.
-  useEffect(() => {
-    const saved = getLLMConfig();
-    if (!showSettings) {
-      // Modal just closed — discard unsaved edits immediately
-      setProvider(saved.provider || "demo");
-      setModel(saved.model || "");
-      setExtra({ endpoint: "", deployment: "", base_url: "http://localhost:11434", ...(saved.extra_config || {}) });
-      setApiKey(saved.api_key || "");
-      setEditingKey(false);
-      return;
-    }
-    // Modal just opened — clear transient UI state (test result, errors)
-    setTestResult(null);
-    setErr(null);
-  }, [showSettings]);
-
-  if (!showSettings) return null;
+  // No sync effect needed — the component is only mounted while the modal is
+  // open (conditional render in App.jsx), so lazy useState always reads fresh
+  // values from localStorage on each open.
 
   const current = PROVIDERS.find((p) => p.id === provider);
   const needsKey = provider !== "demo" && provider !== "ollama";
