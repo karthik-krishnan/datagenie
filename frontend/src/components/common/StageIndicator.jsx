@@ -70,10 +70,10 @@ export default function StageIndicator() {
               <div className="text-sm font-medium">{s.label}</div>
               {skipped && (
                 <div className="text-[10px]">
-                  {!hasSchema && s.n > 1
-                    ? "infer schema first"
-                    : s.n === 3 && !complianceEnabled
+                  {s.n === 3 && !complianceEnabled
                     ? "disabled in settings"
+                    : !hasSchema && s.n > 1
+                    ? "infer schema first"
                     : "not needed"}
                 </div>
               )}
