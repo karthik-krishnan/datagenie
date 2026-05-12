@@ -16,40 +16,41 @@ export default function PreviewTable({ data }) {
   const cols = rows.length > 0 ? Object.keys(rows[0]) : [];
 
   return (
-    <div className="border border-gray-200 rounded-xl overflow-hidden">
-      {/* Tab bar — only shown when there are multiple tables */}
+    <div>
+      {/* Dog-ear tabs — only shown when there are multiple tables */}
       {entries.length > 1 && (
-        <div className="flex border-b border-gray-200 bg-gray-50 overflow-x-auto">
+        <div className="flex items-end gap-1 pl-3 overflow-x-auto">
           {entries.map(([name, tableRows], i) => (
             <button
               key={name}
               onClick={() => setActiveTab(i)}
               className={[
-                "px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors",
-                "focus:outline-none",
+                "flex items-center gap-1.5 px-4 py-2 text-sm font-medium whitespace-nowrap",
+                "border rounded-t-lg transition-all select-none",
                 i === activeTab
-                  ? "border-b-2 border-indigo-500 text-indigo-600 bg-white"
-                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-100",
+                  ? "bg-white border-gray-200 [border-bottom-color:white] text-gray-900 relative z-10 -mb-px"
+                  : "bg-gray-100 border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 mt-1",
               ].join(" ")}
             >
               {name}
-              <span className="ml-1.5 text-xs text-gray-400 font-normal">
-                ({tableRows.length})
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${i === activeTab ? "bg-indigo-100 text-indigo-700" : "bg-gray-200 text-gray-500"}`}>
+                {tableRows.length}
               </span>
             </button>
           ))}
         </div>
       )}
 
-      {/* Single-table header (when no tabs) */}
-      {entries.length === 1 && (
-        <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 text-sm font-medium text-gray-700">
-          {tableName}
-          <span className="ml-1.5 text-xs text-gray-400 font-normal">
-            ({rows.length} rows)
-          </span>
-        </div>
-      )}
+      <div className={`border border-gray-200 bg-white ${entries.length > 1 ? "rounded-b-xl rounded-tr-xl" : "rounded-xl"} overflow-hidden`}>
+        {/* Single-table header (when no tabs) */}
+        {entries.length === 1 && (
+          <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 text-sm font-medium text-gray-700">
+            {tableName}
+            <span className="ml-1.5 text-xs text-gray-400 font-normal">
+              ({rows.length} rows)
+            </span>
+          </div>
+        )}
 
       {/* Data grid */}
       <div className="overflow-x-auto">
@@ -88,6 +89,7 @@ export default function PreviewTable({ data }) {
             </tbody>
           </table>
         )}
+      </div>
       </div>
     </div>
   );
