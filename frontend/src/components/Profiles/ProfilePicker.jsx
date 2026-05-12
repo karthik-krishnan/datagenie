@@ -166,18 +166,12 @@ export default function ProfilePicker() {
 
   return (
     <div className="h-screen bg-white text-gray-900 flex flex-col overflow-hidden">
-      {/* Header — mirrors App.jsx */}
-      <header className="border-b border-gray-200 px-6 py-3 flex items-center justify-between bg-white">
+      {/* Header — identical to App.jsx */}
+      <header className="border-b border-gray-200 px-6 py-3 flex items-center bg-white">
         <div className="flex items-center gap-2">
           <img src="/favicon.svg" alt="DataGenie" className="w-8 h-8" />
           <span className="text-lg font-semibold">DataGenie</span>
         </div>
-        <button
-          onClick={() => setShowProfilePicker(false)}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-medium text-sm"
-        >
-          <span>+</span> Start Fresh
-        </button>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
@@ -208,6 +202,20 @@ export default function ProfilePicker() {
         {/* Main scrollable content */}
         <main className="flex-1 overflow-y-auto bg-gray-50">
       <div className="px-8 py-6 max-w-6xl mx-auto w-full">
+
+        {/* ── Page title + Start Fresh ── */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-xl font-semibold text-gray-900">Welcome to DataGenie</h1>
+            <p className="text-sm text-gray-500 mt-0.5">Choose a template or load a saved profile to get started.</p>
+          </div>
+          <button
+            onClick={() => setShowProfilePicker(false)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-medium text-sm"
+          >
+            <span>+</span> Start Fresh
+          </button>
+        </div>
 
         {/* ── Demo starter templates ── */}
         <div className="mb-8">
