@@ -44,19 +44,19 @@ function computePerTableVolumes(relationships, volume, perParentCounts) {
   if (!relationships || relationships.length === 0) return {};
 
   const manyToOne = relationships.filter(
-    (r) => r.cardinality === "many_to_one" || !r.cardinality
+    (r) => r.cardinality === "one_to_many" || !r.cardinality
   );
   if (manyToOne.length === 0) return {};
 
   // Build parent→children map
   const childrenOf = {}; // parent → [child]
   for (const r of manyToOne) {
-    if (!childrenOf[r.target_table]) childrenOf[r.target_table] = [];
-    childrenOf[r.target_table].push(r.source_table);
+    if (!childrenOf[r.source_table]) childrenOf[r.source_table] = [];
+    childrenOf[r.source_table].push(r.target_table);
   }
 
-  // Root tables = not a child in any many_to_one
-  const childSet = new Set(manyToOne.map((r) => r.source_table));
+  // Root tables = not a child in any one_to_many
+  const childSet = new Set(manyToOne.map((r) => r.target_table));
   const allTableNames = [
     ...new Set([
       ...manyToOne.map((r) => r.source_table),

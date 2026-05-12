@@ -231,8 +231,8 @@ class TestInferMultipleFiles:
         rels = r.json().get("relationships", [])
         assert len(rels) > 0, "Expected FK relationship between orders.user_id and users.id"
         rel = rels[0]
-        assert rel["source_column"] == "user_id"
-        assert rel["target_table"]  == "users"
+        assert rel["source_table"]  == "users"
+        assert rel["target_column"] == "user_id"
 
     def test_three_files(self):
         r = _infer(files={
@@ -348,9 +348,9 @@ class TestRelationshipsViaGenerateEndpoint:
 
     def _rels(self):
         return [{
-            "source_table": "orders", "source_column": "user_id",
-            "target_table": "users",  "target_column": "id",
-            "cardinality":  "many_to_one", "confidence": 0.9,
+            "source_table": "users",  "source_column": "id",
+            "target_table": "orders", "target_column": "user_id",
+            "cardinality":  "one_to_many", "confidence": 0.9,
         }]
 
     def test_generate_returns_zip_for_two_tables(self):

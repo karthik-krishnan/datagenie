@@ -173,9 +173,9 @@ class TestOneToManyJoin:
 
     def _rels(self):
         return [{
-            "source_table": "orders", "source_column": "user_id",
-            "target_table": "users",  "target_column": "id",
-            "cardinality":  "many_to_one", "confidence": 0.9,
+            "source_table": "users",  "source_column": "id",
+            "target_table": "orders", "target_column": "user_id",
+            "cardinality":  "one_to_many", "confidence": 0.9,
         }]
 
     def test_all_order_user_ids_reference_valid_users(self):
@@ -215,8 +215,8 @@ class TestOneToOneJoin:
 
     def _rels(self):
         return [{
-            "source_table": "profiles", "source_column": "user_id",
-            "target_table": "users",    "target_column": "id",
+            "source_table": "users",    "source_column": "id",
+            "target_table": "profiles", "target_column": "user_id",
             "cardinality":  "one_to_one", "confidence": 0.9,
         }]
 
@@ -264,14 +264,14 @@ class TestManyToManyJoin:
     def _rels(self):
         return [
             {
-                "source_table": "enrollments", "source_column": "student_id",
-                "target_table": "students",    "target_column": "id",
-                "cardinality":  "many_to_one",  "confidence": 0.9,
+                "source_table": "students",    "source_column": "id",
+                "target_table": "enrollments", "target_column": "student_id",
+                "cardinality":  "one_to_many",  "confidence": 0.9,
             },
             {
-                "source_table": "enrollments", "source_column": "course_id",
-                "target_table": "courses",     "target_column": "id",
-                "cardinality":  "many_to_one",  "confidence": 0.9,
+                "source_table": "courses",     "source_column": "id",
+                "target_table": "enrollments", "target_column": "course_id",
+                "cardinality":  "one_to_many",  "confidence": 0.9,
             },
         ]
 
@@ -295,7 +295,7 @@ class TestManyToManyJoin:
         data = generate_data(schema, {}, {}, self._rels(), volume=10, llm_settings=DEMO_SETTINGS)
         assert len(data["students"])    == 10
         assert len(data["courses"])     == 10
-        # enrollments has inbound many_to_one FKs → scaled up (3× by default)
+        # enrollments has inbound one_to_many FKs → scaled up (3× by default)
         assert len(data["enrollments"]) == 30
 
     def test_all_three_tables_present(self):
@@ -317,14 +317,14 @@ class TestMultiHopChainJoin:
     def _rels(self):
         return [
             {
-                "source_table": "orders",      "source_column": "user_id",
-                "target_table": "users",        "target_column": "id",
-                "cardinality":  "many_to_one",  "confidence": 0.9,
+                "source_table": "users",        "source_column": "id",
+                "target_table": "orders",        "target_column": "user_id",
+                "cardinality":  "one_to_many",  "confidence": 0.9,
             },
             {
-                "source_table": "order_items",  "source_column": "order_id",
-                "target_table": "orders",        "target_column": "id",
-                "cardinality":  "many_to_one",  "confidence": 0.9,
+                "source_table": "orders",        "source_column": "id",
+                "target_table": "order_items",  "target_column": "order_id",
+                "cardinality":  "one_to_many",  "confidence": 0.9,
             },
         ]
 
@@ -392,12 +392,12 @@ class TestJoinEdgeCases:
             ("b", [_col("id", "integer"), _col("a_id", "integer")]),
         )
         rels = [
-            {"source_table": "a", "source_column": "b_id",
-             "target_table": "b", "target_column": "id",
-             "cardinality": "many_to_one", "confidence": 0.9},
-            {"source_table": "b", "source_column": "a_id",
-             "target_table": "a", "target_column": "id",
-             "cardinality": "many_to_one", "confidence": 0.9},
+            {"source_table": "b", "source_column": "id",
+             "target_table": "a", "target_column": "b_id",
+             "cardinality": "one_to_many", "confidence": 0.9},
+            {"source_table": "a", "source_column": "id",
+             "target_table": "b", "target_column": "a_id",
+             "cardinality": "one_to_many", "confidence": 0.9},
         ]
         # Should not raise — one direction will miss FKs but generation completes
         data = generate_data(schema, {}, {}, rels, volume=5, llm_settings=DEMO_SETTINGS)
@@ -415,9 +415,9 @@ class TestVolumeScaling:
         )
 
     def _rels(self):
-        return [{"source_table": "orders", "source_column": "user_id",
-                 "target_table": "users",  "target_column": "id",
-                 "cardinality": "many_to_one", "confidence": 0.9}]
+        return [{"source_table": "users",  "source_column": "id",
+                 "target_table": "orders", "target_column": "user_id",
+                 "cardinality": "one_to_many", "confidence": 0.9}]
 
     def test_default_3x_multiplier_for_child(self):
         data = generate_data(self._users_orders_schema(), {}, {}, self._rels(),
@@ -453,8 +453,8 @@ class TestVolumeScaling:
             ("users",    [_col("id", "integer")]),
             ("profiles", [_col("id", "integer"), _col("user_id", "integer")]),
         )
-        rels = [{"source_table": "profiles", "source_column": "user_id",
-                 "target_table": "users",    "target_column": "id",
+        rels = [{"source_table": "users",    "source_column": "id",
+                 "target_table": "profiles", "target_column": "user_id",
                  "cardinality": "one_to_one", "confidence": 0.9}]
         data = generate_data(schema, {}, {}, rels, volume=10, llm_settings=DEMO_SETTINGS)
         assert len(data["users"])    == 10

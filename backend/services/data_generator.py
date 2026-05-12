@@ -399,6 +399,9 @@ def _build_fk_pool(parent_pks: List[Any], spec, n_total: int) -> Optional[List[A
     if not parent_pks:
         return None
 
+    if spec is None:
+        return None  # no spec — caller uses random.choice
+
     if isinstance(spec, (int, float)):
         return None  # legacy fixed count — caller uses random.choice
 
@@ -438,7 +441,7 @@ def _build_fk_pool(parent_pks: List[Any], spec, n_total: int) -> Optional[List[A
 # Per-table volume calculation
 #
 # Root tables (no inbound FK) get `volume` rows.
-# Child tables in a many_to_one relationship scale up based on expected
+# Child tables in a one_to_many relationship scale up based on expected
 # children per parent (supports plain int or {min,max,shape} specs).
 #
 # `per_table_volumes` overrides everything for a specific table.
@@ -460,10 +463,19 @@ def _compute_table_volumes(
     tname_set = set(table_names)
 
     # BFS from roots to assign depth
-    child_set = {
-        r["source_table"] for r in all_rels
-        if r["source_table"] in tname_set and r["target_table"] in tname_set
-    }
+    # With new model: source=parent, target=child; legacy many_to_one: source=child, target=parent
+    child_set = set()
+    for r in all_rels:
+        card = r.get("cardinality", "one_to_many")
+        if card in ("one_to_many",):
+            tbl = r["target_table"]
+        elif card == "many_to_one":
+            # legacy: source was child
+            tbl = r["source_table"]
+        else:
+            continue
+        if tbl in tname_set:
+            child_set.add(tbl)
     depth: Dict[str, int] = {}
     queue: deque = deque()
     for t in table_names:
@@ -477,13 +489,22 @@ def _compute_table_volumes(
                 depth[child] = d + 1
                 queue.append((child, d + 1))
 
-    # Dominant incoming cardinality per table
+    # Dominant incoming cardinality per child table
     incoming: Dict[str, str] = {}
     for r in all_rels:
-        src  = r["source_table"]
-        card = r.get("cardinality", "many_to_one")
-        if src not in incoming or card == "many_to_one":
-            incoming[src] = card
+        card = r.get("cardinality", "one_to_many")
+        if card == "many_to_one":
+            # legacy: source was child
+            child = r["source_table"]
+            card  = "one_to_many"
+        elif card == "one_to_many":
+            child = r["target_table"]
+        elif card == "one_to_one":
+            child = r["target_table"]
+        else:
+            continue
+        if child not in incoming or card == "one_to_many":
+            incoming[child] = card
 
     result: Dict[str, int] = {}
     for t in table_names:
@@ -491,7 +512,7 @@ def _compute_table_volumes(
             result[t] = max(1, int(per_table_volumes[t]))
         else:
             d    = depth.get(t, 0)
-            card = incoming.get(t, "many_to_one")
+            card = incoming.get(t, "one_to_many")
             if d == 0 or card == "one_to_one":
                 result[t] = base_volume
             else:
@@ -526,7 +547,7 @@ def generate_data(
     all_rels = relationships or schema.get("relationships", [])
 
     # ── Topological sort (Kahn's algorithm) — supports multi-hop chains A→B→C ──
-    # source_table = child (has the FK), target_table = parent (owns the PK).
+    # source_table = parent (owns the PK), target_table = child (has the FK).
     table_names = [t["table_name"] for t in tables]
     in_degree:  Dict[str, int]       = {t: 0 for t in table_names}
     adj:        Dict[str, List[str]] = defaultdict(list)   # parent → [children]
@@ -534,8 +555,8 @@ def generate_data(
     for r in all_rels:
         src, tgt = r["source_table"], r["target_table"]
         if src in in_degree and tgt in in_degree and tgt != src:
-            adj[tgt].append(src)
-            in_degree[src] += 1
+            adj[src].append(tgt)
+            in_degree[tgt] += 1
 
     queue = deque(sorted([t for t in table_names if in_degree[t] == 0]))
     ordered_names: List[str] = []
@@ -554,7 +575,7 @@ def generate_data(
     name_to_table = {t["table_name"]: t for t in tables}
     ordered = [name_to_table[n] for n in ordered_names if n in name_to_table]
 
-    # Per-table row counts — children in many:1 relationships scale up
+    # Per-table row counts — children in 1:many relationships scale up
     table_volumes = _compute_table_volumes(
         table_names         = table_names,
         all_rels            = all_rels,
@@ -574,11 +595,24 @@ def generate_data(
     unique_seen: Dict[str, set] = {}
 
     for r in all_rels:
-        fk_map.setdefault(r["source_table"], {})[r["source_column"]] = {
-            "target_table":  r["target_table"],
-            "target_column": r["target_column"],
-            "cardinality":   r.get("cardinality", "many_to_one"),
-        }
+        card = r.get("cardinality", "one_to_many")
+        # Legacy backward compat: treat old many_to_one as one_to_many
+        if card == "many_to_one":
+            card = "one_to_many"
+        # FK lives in target_table (child); it references source_table (parent)
+        if card in ("one_to_many", "one_to_one"):
+            fk_map.setdefault(r["target_table"], {})[r["target_column"]] = {
+                "target_table":  r["source_table"],
+                "target_column": r["source_column"],
+                "cardinality":   card,
+            }
+        else:
+            # many_to_many or other — keep source_table convention
+            fk_map.setdefault(r["source_table"], {})[r["source_column"]] = {
+                "target_table":  r["target_table"],
+                "target_column": r["target_column"],
+                "cardinality":   card,
+            }
 
     out: Dict[str, List[Dict[str, Any]]] = {}
 

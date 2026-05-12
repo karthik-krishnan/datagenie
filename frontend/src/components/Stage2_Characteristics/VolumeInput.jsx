@@ -43,13 +43,13 @@ export default function VolumeInput({
   perParentCounts = {},
   onChildCountChange,
 }) {
-  // Derive many-to-one relationships (child → parent)
+  // Derive one-to-many relationships (parent → child)
   const manyToOneRels = relationships.filter(
-    (r) => r.cardinality === "many_to_one" || !r.cardinality
+    (r) => r.cardinality === "one_to_many" || !r.cardinality
   );
 
-  // Root tables = appear in schema but never as source_table in a many_to_one rel
-  const childTables = new Set(manyToOneRels.map((r) => r.source_table));
+  // Root tables = appear in schema but never as target_table in a one_to_many rel
+  const childTables = new Set(manyToOneRels.map((r) => r.target_table));
   const allTables = schema?.tables?.map((t) => t.table_name) || [];
   const rootTables = allTables.filter((t) => !childTables.has(t));
   const hasMultipleTables = allTables.length > 1;
@@ -98,8 +98,8 @@ export default function VolumeInput({
           </div>
 
           {manyToOneRels.map((rel) => {
-            const child = rel.source_table;
-            const parent = rel.target_table;
+            const child = rel.target_table;
+            const parent = rel.source_table;
             const spec = toSpec(perParentCounts[child]);
 
             return (

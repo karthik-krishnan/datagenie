@@ -95,7 +95,7 @@ function CardinalityPicker({ value, onChange }) {
 // ── Main component ────────────────────────────────────────────────────────────
 export default function RelationshipMapper({ schema, relationships, onUpdate, aiRelationships = [] }) {
   const [adding, setAdding]       = useState(false);
-  const [draft, setDraft]         = useState({ source_table: "", source_column: "", target_table: "", target_column: "", cardinality: "many_to_one" });
+  const [draft, setDraft]         = useState({ source_table: "", source_column: "", target_table: "", target_column: "", cardinality: "one_to_many" });
   const [draftError, setDraftError] = useState(null);
   const [rowErrors, setRowErrors] = useState({});   // index → error string | null
 
@@ -154,7 +154,7 @@ export default function RelationshipMapper({ schema, relationships, onUpdate, ai
     const err = validate(draft, relationships);
     if (err) { setDraftError(err); return; }
     onUpdate([...relationships, { ...draft, confidence: 1.0 }]);
-    setDraft({ source_table: "", source_column: "", target_table: "", target_column: "", cardinality: "many_to_one" });
+    setDraft({ source_table: "", source_column: "", target_table: "", target_column: "", cardinality: "one_to_many" });
     setDraftError(null);
     setAdding(false);
   };
@@ -185,7 +185,7 @@ export default function RelationshipMapper({ schema, relationships, onUpdate, ai
           {/* Source side */}
           <div className="grid grid-cols-2 gap-2">
             <FieldSelect
-              label="Source table"
+              label="Parent table"
               value={r.source_table}
               onChange={(v) => isNew ? updateDraft({ source_table: v }) : update(i, { source_table: v })}
               options={allTbls}
@@ -207,11 +207,11 @@ export default function RelationshipMapper({ schema, relationships, onUpdate, ai
           {/* Target side */}
           <div className="grid grid-cols-2 gap-2">
             <FieldSelect
-              label="Target table"
+              label="Child table"
               value={r.target_table}
               onChange={(v) => isNew ? updateDraft({ target_table: v }) : update(i, { target_table: v })}
               options={tgtOptions}
-              placeholder={r.source_table ? "— table —" : "pick source first"}
+              placeholder={r.source_table ? "— table —" : "pick parent first"}
               disabled={!r.source_table || tgtOptions.length === 0}
             />
             <FieldSelect

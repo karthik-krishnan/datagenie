@@ -253,15 +253,15 @@ def _relationships_from_tables(tables: List[Dict[str, Any]]) -> List[Dict[str, A
                     for c2 in t2["columns"]:
                         n2 = c2["name"].lower()
                         if n2 == "id" or n2 == f"{t2name}_id":
-                            key = (t1["table_name"], c1["name"], t2["table_name"], c2["name"])
+                            key = (t2["table_name"], c2["name"], t1["table_name"], c1["name"])
                             if key not in seen:
                                 seen.add(key)
                                 relationships.append({
-                                    "source_table":  t1["table_name"],
-                                    "source_column": c1["name"],
-                                    "target_table":  t2["table_name"],
-                                    "target_column": c2["name"],
-                                    "cardinality":   "many_to_one",
+                                    "source_table":  t2["table_name"],
+                                    "source_column": c2["name"],
+                                    "target_table":  t1["table_name"],
+                                    "target_column": c1["name"],
+                                    "cardinality":   "one_to_many",
                                     "confidence":    0.85,
                                 })
                             break
@@ -393,11 +393,11 @@ def infer_schema(parsed_files: List[Dict[str, Any]], context_text: str = "") -> 
                         n2 = c2["name"].lower()
                         if n2 == "id" or n2.endswith("_id"):
                             relationships.append({
-                                "source_table": t1["table_name"],
-                                "source_column": c1["name"],
-                                "target_table": t2["table_name"],
-                                "target_column": c2["name"],
-                                "cardinality": "many_to_one",
+                                "source_table": t2["table_name"],
+                                "source_column": c2["name"],
+                                "target_table": t1["table_name"],
+                                "target_column": c1["name"],
+                                "cardinality": "one_to_many",
                                 "confidence": 0.85,
                             })
                             break
