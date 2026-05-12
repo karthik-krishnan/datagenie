@@ -259,9 +259,9 @@ export default function App() {
           title="Back to home"
         >
           <img src="/favicon.svg" alt="DataGenie" className="w-8 h-8" />
-          <div className="flex flex-col items-start">
+          <div className="flex flex-col items-start shrink-0">
             <span>DataGenie</span>
-            <span className="text-xs font-normal text-gray-400 leading-none">AI-powered synthetic test data</span>
+            <span className="text-xs font-normal text-gray-400 leading-none whitespace-nowrap">AI-powered synthetic test data</span>
           </div>
         </button>
 
