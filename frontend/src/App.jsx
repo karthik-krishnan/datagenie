@@ -27,6 +27,19 @@ import UnderstandingSummary from "./components/Stage2_Characteristics/Understand
  * Only includes tables that differ from the base `volume` — so the backend
  * applies its own default (3× per level) for any table not listed.
  */
+/** Get expected children per parent from a spec (number or {min,max,shape}). */
+function expectedCount(spec) {
+  if (!spec && spec !== 0) return 3;
+  if (typeof spec === "number") return spec;
+  const min = Number(spec.min) || 1;
+  const max = Number(spec.max) || min;
+  const shape = spec.shape || "Realistic";
+  if (shape === "Fixed") return Math.round((min + max) / 2);
+  if (shape === "Uniform") return (min + max) / 2;
+  // Realistic: skewed toward low end (~35% of range above min)
+  return min + 0.35 * (max - min);
+}
+
 function computePerTableVolumes(relationships, volume, perParentCounts) {
   if (!relationships || relationships.length === 0) return {};
 
@@ -36,12 +49,10 @@ function computePerTableVolumes(relationships, volume, perParentCounts) {
   if (manyToOne.length === 0) return {};
 
   // Build parent→children map
-  const childrenOf = {}; // parent → [{child, rel}]
-  const parentOf = {};   // child → parent
+  const childrenOf = {}; // parent → [child]
   for (const r of manyToOne) {
     if (!childrenOf[r.target_table]) childrenOf[r.target_table] = [];
     childrenOf[r.target_table].push(r.source_table);
-    parentOf[r.source_table] = r.target_table;
   }
 
   // Root tables = not a child in any many_to_one
@@ -54,22 +65,22 @@ function computePerTableVolumes(relationships, volume, perParentCounts) {
   ];
   const roots = allTableNames.filter((t) => !childSet.has(t));
 
-  // BFS to compute absolute volumes
+  // BFS to compute absolute volumes using expected child counts
   const volumes = {};
   const queue = roots.map((r) => ({ table: r, vol: volume }));
   while (queue.length) {
     const { table, vol } = queue.shift();
     volumes[table] = vol;
     for (const child of childrenOf[table] || []) {
-      const countPerParent = perParentCounts[child] || 3;
-      queue.push({ table: child, vol: vol * countPerParent });
+      const avg = expectedCount(perParentCounts[child]);
+      queue.push({ table: child, vol: vol * avg });
     }
   }
 
   // Only return non-root overrides (root tables use `volume` directly)
   const overrides = {};
   for (const [t, v] of Object.entries(volumes)) {
-    if (!roots.includes(t)) overrides[t] = v;
+    if (!roots.includes(t)) overrides[t] = Math.round(v);
   }
   return overrides;
 }
@@ -391,11 +402,11 @@ export default function App() {
                 relationships={relationships}
                 schema={inferredSchema}
                 perParentCounts={characteristics.per_parent_counts || {}}
-                onChildCountChange={(childTable, count) =>
+                onChildCountChange={(childTable, spec) =>
                   setCharacteristics({
                     per_parent_counts: {
                       ...(characteristics.per_parent_counts || {}),
-                      [childTable]: count,
+                      [childTable]: spec,
                     },
                   })
                 }
@@ -422,15 +433,29 @@ export default function App() {
                 </div>
 
                 {!characteristics.quickMode && (
-                  <div className="space-y-4 pt-1">
-                    {inferredSchema.tables.map((t, i) => (
-                      <AttributeDistribution
-                        key={i}
-                        table={t}
-                        characteristics={characteristics}
-                        onUpdate={(patch) => setCharacteristics(patch)}
-                      />
-                    ))}
+                  <div className="pt-1">
+                    <AttributeDistribution
+                      tables={inferredSchema.tables}
+                      characteristics={characteristics}
+                      onUpdate={(patch) => setCharacteristics(patch)}
+                      onSchemaUpdate={(tableIdx, colName, enumValues) => {
+                        updateSchema((s) => ({
+                          ...s,
+                          tables: s.tables.map((tt, idx) =>
+                            idx === tableIdx
+                              ? {
+                                  ...tt,
+                                  columns: tt.columns.map((c) =>
+                                    c.name === colName
+                                      ? { ...c, type: "enum", enum_values: enumValues }
+                                      : c
+                                  ),
+                                }
+                              : tt
+                          ),
+                        }));
+                      }}
+                    />
                   </div>
                 )}
               </div>

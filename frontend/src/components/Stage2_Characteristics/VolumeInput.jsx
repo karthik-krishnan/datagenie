@@ -1,19 +1,39 @@
 /**
- * VolumeInput — main record count + optional per-child counts for relational data.
+ * VolumeInput — main record count + per-child count configuration.
  *
- * When the inferred schema has multiple tables connected by many-to-one
- * relationships we show extra inputs so the user can specify how many child
- * records to generate per parent row (e.g. "3 orders per customer").
+ * Each child table supports:
+ *   - Min / Max count per parent
+ *   - Shape: Fixed | Uniform | Realistic
  *
  * Props
- *   value            – root-entity record count (number)
- *   onChange          – called with new root count
- *   fromContext       – true when count came from the context extractor
- *   relationships     – array of relationship objects from inferredSchema
- *   schema            – inferredSchema (to find root tables & labels)
- *   perParentCounts   – { [childTable]: number }
- *   onChildCountChange – (childTable, count) => void
+ *   value              – root-entity record count (number)
+ *   onChange           – called with new root count
+ *   fromContext        – true when count came from the context extractor
+ *   relationships      – array of relationship objects from inferredSchema
+ *   schema             – inferredSchema (to find root tables & labels)
+ *   perParentCounts    – { [childTable]: number | { min, max, shape } }
+ *   onChildCountChange – (childTable, spec) => void  (spec = { min, max, shape })
  */
+
+const SHAPES = ["Fixed", "Uniform", "Realistic"];
+
+/** Normalise a perParentCounts entry to { min, max, shape } */
+function toSpec(val) {
+  if (!val && val !== 0) return { min: "", max: "", shape: "Realistic" };
+  if (typeof val === "number") return { min: val, max: val, shape: "Fixed" };
+  return {
+    min: val.min ?? "",
+    max: val.max ?? "",
+    shape: val.shape ?? "Realistic",
+  };
+}
+
+const SHAPE_HELP = {
+  Fixed:     "Every parent gets the same number of children (midpoint of min–max).",
+  Uniform:   "Each parent gets a random count, evenly spread between min and max.",
+  Realistic: "Most parents get fewer children; a handful get many (power-law skew).",
+};
+
 export default function VolumeInput({
   value,
   onChange,
@@ -34,11 +54,15 @@ export default function VolumeInput({
   const rootTables = allTables.filter((t) => !childTables.has(t));
   const hasMultipleTables = allTables.length > 1;
 
-  // Label the main input with the root table name when unambiguous
   const rootLabel =
     hasMultipleTables && rootTables.length === 1
       ? `How many ${rootTables[0]} records?`
       : "How many records?";
+
+  const updateSpec = (child, field, val) => {
+    const current = toSpec(perParentCounts[child]);
+    onChildCountChange(child, { ...current, [field]: val });
+  };
 
   return (
     <div className="space-y-4">
@@ -63,45 +87,79 @@ export default function VolumeInput({
         />
       </div>
 
-      {/* ── Per-child counts (only shown when there are many-to-one rels) ── */}
+      {/* ── Per-child counts ── */}
       {manyToOneRels.length > 0 && onChildCountChange && (
-        <div className="border border-gray-200 rounded-xl p-4 space-y-3">
+        <div className="border border-gray-200 rounded-xl p-4 space-y-4">
           <div>
             <h3 className="text-sm font-medium text-gray-800">Child record counts</h3>
             <p className="text-xs text-gray-500 mt-0.5">
-              Set how many related records to generate per parent row.
+              Control how many child rows each parent row produces.
             </p>
           </div>
 
           {manyToOneRels.map((rel) => {
             const child = rel.source_table;
             const parent = rel.target_table;
-            const currentVal = perParentCounts[child] ?? "";
+            const spec = toSpec(perParentCounts[child]);
+
             return (
-              <div key={`${child}-${parent}`} className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min={1}
-                  max={1000}
-                  value={currentVal}
-                  placeholder="3"
-                  onChange={(e) =>
-                    onChildCountChange(child, parseInt(e.target.value || "0", 10))
-                  }
-                  className="w-20 border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-500"
-                />
-                <span className="text-sm text-gray-700">
+              <div key={`${child}-${parent}`} className="space-y-2">
+                {/* Label */}
+                <div className="text-sm text-gray-700">
                   <span className="font-medium">{child}</span>
                   <span className="text-gray-400 mx-1">per</span>
                   <span className="font-medium">{parent}</span>
-                </span>
+                </div>
+
+                {/* Min / Max inputs */}
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <label className="text-xs text-gray-500 w-7">Min</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={1000}
+                      value={spec.min}
+                      placeholder="1"
+                      onChange={(e) => updateSpec(child, "min", parseInt(e.target.value || "0", 10))}
+                      className="w-20 border border-gray-300 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <span className="text-gray-400 text-sm">–</span>
+                  <div className="flex items-center gap-1.5">
+                    <label className="text-xs text-gray-500 w-7">Max</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={1000}
+                      value={spec.max}
+                      placeholder="5"
+                      onChange={(e) => updateSpec(child, "max", parseInt(e.target.value || "0", 10))}
+                      className="w-20 border border-gray-300 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Shape chips */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {SHAPES.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => updateSpec(child, "shape", s)}
+                      className={`text-xs px-3 py-1 rounded-full border transition-all ${
+                        spec.shape === s
+                          ? "bg-indigo-600 text-white border-indigo-600"
+                          : "bg-white text-gray-600 border-gray-300 hover:border-indigo-400 hover:text-indigo-600"
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                  <span className="text-xs text-gray-400 ml-1">{SHAPE_HELP[spec.shape]}</span>
+                </div>
               </div>
             );
           })}
-
-          <p className="text-xs text-gray-400 pt-1">
-            Default is 3 per parent if left blank.
-          </p>
         </div>
       )}
     </div>

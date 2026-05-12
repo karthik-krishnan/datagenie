@@ -370,28 +370,88 @@ def _apply_enum_distribution(col: Dict[str, Any], distribution: Dict[str, float]
 
 
 # ---------------------------------------------------------------------------
+# Per-parent child count helpers
+# ---------------------------------------------------------------------------
+def _expected_count(spec) -> float:
+    """Expected children per parent from a spec (int or {min,max,shape})."""
+    if spec is None:
+        return 3.0
+    if isinstance(spec, (int, float)):
+        return float(spec)
+    mn  = float(spec.get("min", 1))
+    mx  = float(spec.get("max", mn))
+    shp = spec.get("shape", "Realistic")
+    if shp == "Fixed":
+        return (mn + mx) / 2
+    if shp == "Uniform":
+        return (mn + mx) / 2
+    # Realistic: skewed toward low end (~35% of range above min)
+    return mn + 0.35 * (mx - mn)
+
+
+def _build_fk_pool(parent_pks: List[Any], spec, n_total: int) -> Optional[List[Any]]:
+    """
+    Build a shuffled list of FK values for n_total child rows so that
+    individual parents get variable child counts according to `spec`.
+
+    Returns None when simple random.choice should be used (Fixed / plain int).
+    """
+    if not parent_pks:
+        return None
+
+    if isinstance(spec, (int, float)):
+        return None  # legacy fixed count — caller uses random.choice
+
+    mn  = int(spec.get("min", 1))
+    mx  = int(spec.get("max", mn))
+    shp = spec.get("shape", "Realistic")
+
+    if shp == "Fixed":
+        # Every parent gets the midpoint count
+        count_per = max(1, (mn + mx) // 2)
+        pool = []
+        for pk in parent_pks:
+            pool.extend([pk] * count_per)
+    elif shp == "Uniform":
+        pool = []
+        for pk in parent_pks:
+            pool.extend([pk] * random.randint(max(0, mn), max(mn, mx)))
+    else:  # Realistic — power-law skew toward low end
+        pool = []
+        for pk in parent_pks:
+            # u ~ U(0,1); u^1.8 skews toward 0
+            u = random.random() ** 1.8
+            cnt = max(mn, round(mn + u * (mx - mn)))
+            pool.extend([pk] * cnt)
+
+    random.shuffle(pool)
+
+    # Trim or pad to n_total
+    if len(pool) >= n_total:
+        return pool[:n_total]
+    while len(pool) < n_total:
+        pool.append(random.choice(parent_pks))
+    return pool
+
+
+# ---------------------------------------------------------------------------
 # Per-table volume calculation
 #
 # Root tables (no inbound FK) get `volume` rows.
-# Child tables in a many_to_one relationship scale up so the relationship
-# feels realistic:
+# Child tables in a many_to_one relationship scale up based on expected
+# children per parent (supports plain int or {min,max,shape} specs).
 #
-#   depth 0  (root)            →  volume
-#   depth 1  (direct child)    →  volume × children_per_parent
-#   depth 2  (grandchild)      →  volume × children_per_parent²
-#
-# one_to_one children always get the same count as their parent.
-#
-# `per_table_volumes` (from characteristics) overrides everything for a
-# specific table.  Preview mode always uses the passed volume unchanged.
+# `per_table_volumes` overrides everything for a specific table.
+# Preview mode always uses the passed volume unchanged.
 # ---------------------------------------------------------------------------
 def _compute_table_volumes(
     table_names:         List[str],
     all_rels:            List[Dict[str, Any]],
-    parent_to_children:  Dict[str, List[str]],   # adj from topological sort
+    parent_to_children:  Dict[str, List[str]],
     base_volume:         int,
     per_table_volumes:   Dict[str, int],
-    children_per_parent: int,
+    per_parent_counts:   Dict[str, Any],   # child → int | {min,max,shape}
+    children_per_parent: int,              # legacy fallback
     preview:             bool,
 ) -> Dict[str, int]:
     if preview:
@@ -418,7 +478,6 @@ def _compute_table_volumes(
                 queue.append((child, d + 1))
 
     # Dominant incoming cardinality per table
-    # (many_to_one beats one_to_one — if any parent sends many children, scale up)
     incoming: Dict[str, str] = {}
     for r in all_rels:
         src  = r["source_table"]
@@ -436,7 +495,9 @@ def _compute_table_volumes(
             if d == 0 or card == "one_to_one":
                 result[t] = base_volume
             else:
-                result[t] = max(base_volume, int(base_volume * (children_per_parent ** d)))
+                spec = per_parent_counts.get(t)
+                avg  = _expected_count(spec) if spec is not None else float(children_per_parent)
+                result[t] = max(base_volume, round(base_volume * (avg ** d)))
     return result
 
 
@@ -457,7 +518,9 @@ def generate_data(
     characteristics      = characteristics or {}
     distributions        = characteristics.get("distributions", {})
     temporal             = characteristics.get("temporal", {})
+    ranges               = characteristics.get("ranges", {})
     per_table_volumes    = characteristics.get("per_table_volumes", {})
+    per_parent_counts    = characteristics.get("per_parent_counts", {})
     children_per_parent  = int(characteristics.get("children_per_parent", 3))
 
     all_rels = relationships or schema.get("relationships", [])
@@ -498,12 +561,18 @@ def generate_data(
         parent_to_children  = adj,
         base_volume         = volume,
         per_table_volumes   = per_table_volumes,
+        per_parent_counts   = per_parent_counts,
         children_per_parent = children_per_parent,
         preview             = preview,
     )
 
-    pk_cache: Dict[str, List[Any]] = {}
-    fk_map:   Dict[str, Dict[str, Any]] = {}
+    pk_cache:    Dict[str, List[Any]] = {}
+    fk_map:      Dict[str, Dict[str, Any]] = {}
+    # Pre-built FK assignment pools (child_table.fk_col → [parent_pk, ...])
+    fk_pools:    Dict[str, List[Any]] = {}
+    # Seen-value sets for unique constraint enforcement (table.col → set of str)
+    unique_seen: Dict[str, set] = {}
+
     for r in all_rels:
         fk_map.setdefault(r["source_table"], {})[r["source_column"]] = {
             "target_table":  r["target_table"],
@@ -518,7 +587,21 @@ def generate_data(
         cols  = tbl["columns"]
         n     = table_volumes.get(tname, volume)
 
-        # Pre-compute distributed columns (enum / boolean with explicit distribution)
+        # ── Build FK pools for variable child counts (once parent PKs are known) ──
+        for fk_col, fk_info in fk_map.get(tname, {}).items():
+            if fk_info.get("cardinality") == "one_to_one":
+                continue  # handled separately below
+            pool_key = f"{tname}.{fk_col}"
+            if pool_key not in fk_pools:
+                parent_pks = pk_cache.get(
+                    f"{fk_info['target_table']}.{fk_info['target_column']}", []
+                )
+                spec = per_parent_counts.get(tname)
+                pool = _build_fk_pool(parent_pks, spec, n)
+                if pool is not None:
+                    fk_pools[pool_key] = pool
+
+        # ── Pre-compute distributed columns (enum / boolean / numeric range) ──
         precomputed: Dict[str, List[Any]] = {}
         for col in cols:
             cname    = col["name"]
@@ -533,12 +616,20 @@ def generate_data(
                 precomputed[cname] = [random.random() < ratio for _ in range(n)]
 
             elif col.get("name", "").lower() == "gender" or col.get("enum_values"):
-                # Gender or any enum column with distribution keyed by value
                 if isinstance(dist, dict) and dist:
                     precomputed[cname] = _apply_enum_distribution(col, dist, n)
 
-        # Sort columns so location-parent fields (country, state) come before
-        # location-child fields (city) — ensures city can reference country in the row.
+            # Numeric range overrides
+            elif col.get("type") in ("integer", "float"):
+                rng = ranges.get(dist_key) or ranges.get(cname)
+                if isinstance(rng, dict) and "min" in rng and "max" in rng:
+                    lo, hi = float(rng["min"]), float(rng["max"])
+                    if col.get("type") == "integer":
+                        precomputed[cname] = [random.randint(int(lo), int(hi)) for _ in range(n)]
+                    else:
+                        precomputed[cname] = [round(random.uniform(lo, hi), 2) for _ in range(n)]
+
+        # Sort columns so country → state → city are generated in order
         def _col_order(c: Dict[str, Any]) -> int:
             nl = c["name"].lower()
             if "country" in nl: return 0
@@ -554,16 +645,14 @@ def generate_data(
 
             for col in cols_ordered:
                 cname = col["name"]
-                # Pass partial row as context so city can read the country already set
                 col_with_table = {**col, "_table": tname, "_row_context": row}
 
-                # FK reference — use a parent PK value
+                # FK reference — use parent PK value
                 fk = fk_map.get(tname, {}).get(cname)
                 if fk:
                     parent_pk = pk_cache.get(f"{fk['target_table']}.{fk['target_column']}", [])
                     if parent_pk:
                         if fk.get("cardinality") == "one_to_one":
-                            # Maintain a shuffle pool so each parent PK is used at most once.
                             pool_key = f"__1to1__{fk['target_table']}.{fk['target_column']}__{tname}.{cname}"
                             if pool_key not in pk_cache:
                                 pool = list(parent_pk)
@@ -572,10 +661,16 @@ def generate_data(
                             pool = pk_cache[pool_key]
                             row[cname] = pool.pop(0) if pool else random.choice(parent_pk)
                         else:
-                            row[cname] = random.choice(parent_pk)
+                            # Use pre-built variable pool if available
+                            fk_pool_key = f"{tname}.{cname}"
+                            if fk_pool_key in fk_pools:
+                                pool = fk_pools[fk_pool_key]
+                                row[cname] = pool[i] if i < len(pool) else random.choice(parent_pk)
+                            else:
+                                row[cname] = random.choice(parent_pk)
                         continue
 
-                # Pre-computed distribution
+                # Pre-computed distribution / range
                 if cname in precomputed:
                     row[cname] = precomputed[cname][i]
                     continue
@@ -585,19 +680,47 @@ def generate_data(
                     row[cname] = i + 1
                     continue
 
-                # Generate value
-                val = _gen_value_for_column(col_with_table, compliance_rules)
+                # Generate value — with unique constraint enforcement if requested
+                needs_unique = col.get("unique") and col.get("type") not in ("enum", "boolean")
+                unique_key   = f"{tname}.{cname}"
 
-                # Apply temporal aging for date columns
-                if col.get("type") == "date":
-                    aging = temporal.get(f"{tname}.{cname}") or temporal.get(cname)
-                    if aging:
-                        try:
-                            days = int(aging.get("days_back", 0)) if isinstance(aging, dict) else int(aging)
-                            if days:
-                                val = _apply_temporal_aging(days, col.get("date_format"))
-                        except Exception:
-                            pass
+                if needs_unique:
+                    seen = unique_seen.setdefault(unique_key, set())
+                    val = None
+                    for _attempt in range(100):
+                        candidate = _gen_value_for_column(col_with_table, compliance_rules)
+                        # Apply temporal aging inside the retry loop for date columns
+                        if col.get("type") == "date":
+                            aging = temporal.get(f"{tname}.{cname}") or temporal.get(cname)
+                            if aging:
+                                try:
+                                    days = int(aging.get("days_back", 0)) if isinstance(aging, dict) else int(aging)
+                                    if days:
+                                        candidate = _apply_temporal_aging(days, col.get("date_format"))
+                                except Exception:
+                                    pass
+                        candidate_str = str(candidate)
+                        if candidate_str not in seen:
+                            seen.add(candidate_str)
+                            val = candidate
+                            break
+                    if val is None:
+                        # Exhausted retries — append row index to force uniqueness
+                        val = f"{_gen_value_for_column(col_with_table, compliance_rules)}_{i}"
+                        unique_seen.setdefault(unique_key, set()).add(str(val))
+                else:
+                    val = _gen_value_for_column(col_with_table, compliance_rules)
+
+                    # Apply temporal aging for date columns
+                    if col.get("type") == "date":
+                        aging = temporal.get(f"{tname}.{cname}") or temporal.get(cname)
+                        if aging:
+                            try:
+                                days = int(aging.get("days_back", 0)) if isinstance(aging, dict) else int(aging)
+                                if days:
+                                    val = _apply_temporal_aging(days, col.get("date_format"))
+                            except Exception:
+                                pass
 
                 row[cname] = val
 

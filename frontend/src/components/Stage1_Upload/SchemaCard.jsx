@@ -153,6 +153,28 @@ const DATE_FORMATS = [
   { label: "MM/DD/YYYY HH:mm:ss", value: "MM/DD/YYYY HH:mm:ss" },
 ];
 
+// ── Unique constraint auto-detection ──────────────────────────────────────────
+// Returns true when a column name strongly implies uniqueness by design.
+// These are identifiers / credentials where duplicate values would be invalid
+// in virtually any real-world schema.
+function autoDetectUnique(name) {
+  const n = name.toLowerCase();
+  return (
+    /\bemail\b/.test(n) ||
+    /\bssn\b|\bsocial.sec/.test(n) ||
+    /\bpassport\b/.test(n) ||
+    /\biban\b/.test(n) ||
+    /\bnational.?id\b|\bnino\b/.test(n) ||
+    /\bdriver.?licen/.test(n) ||
+    /\bvin\b|\bvehicle.?id\b|\blicense.?plate\b|\bplate.?num/.test(n) ||
+    /\bdevice.?id\b|\bmac.?addr\b|\bimei\b/.test(n) ||
+    /\bsession.?id\b/.test(n) ||
+    /\bcredit.?card\b|\bcard.?num\b|\bpan\b/.test(n) ||
+    /\busername\b/.test(n) ||
+    /\bslug\b/.test(n)
+  );
+}
+
 // Infer a sensible type from a column name alone (no sample data needed).
 // Called when the user adds a new column or when inference returns "string"
 // but the name strongly implies a more specific type.
@@ -331,6 +353,7 @@ export default function SchemaCard({ table, onChange }) {
       enum_values: inferredType === "enum" ? suggestEnumValues(name) : [],
       date_format: inferredType === "date" ? "YYYY-MM-DD" : undefined,
       pii: detectPIIFromName(name),
+      unique: autoDetectUnique(name),
     };
     onChange({ ...table, columns: [...table.columns, newCol] });
   };
@@ -384,6 +407,7 @@ export default function SchemaCard({ table, onChange }) {
               <th className="text-left px-4 py-2">Type</th>
               <th className="text-left px-4 py-2">Values / Format</th>
               <th className="text-left px-4 py-2">Sensitivity <span className="normal-case text-gray-400 font-normal">(click to edit)</span></th>
+              <th className="text-center px-3 py-2" title="Unique constraint — no duplicate values will be generated">Unique</th>
               <th className="px-4 py-2"></th>
             </tr>
           </thead>
@@ -415,6 +439,11 @@ export default function SchemaCard({ table, onChange }) {
                         // manually overridden — confidence < 1 means auto-detected)
                         if (!c.pii || c.pii.confidence < 1) {
                           patch.pii = detectPIIFromName(name);
+                        }
+                        // Re-detect uniqueness when name changes (only if not
+                        // manually toggled by the user — track with unique_manual flag)
+                        if (!c.unique_manual) {
+                          patch.unique = autoDetectUnique(name);
                         }
                         updateColumn(i, patch);
                       }}
@@ -475,6 +504,17 @@ export default function SchemaCard({ table, onChange }) {
                     <SensitivityCell
                       pii={c.pii}
                       onChange={(newPii) => updateColumn(i, { pii: { ...newPii, confidence: 1.0 } })}
+                    />
+                  </td>
+
+                  {/* Unique constraint */}
+                  <td className="px-3 py-2 text-center">
+                    <input
+                      type="checkbox"
+                      checked={!!c.unique}
+                      onChange={(e) => updateColumn(i, { unique: e.target.checked, unique_manual: true })}
+                      className="accent-indigo-600 w-3.5 h-3.5 cursor-pointer"
+                      title={c.unique ? "Unique — no duplicates generated" : "Allow duplicates"}
                     />
                   </td>
 

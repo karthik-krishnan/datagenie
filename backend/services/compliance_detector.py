@@ -91,128 +91,276 @@ def detect_domain_frameworks(context_text: str) -> Set[str]:
 # ---------------------------------------------------------------------------
 FIELD_CATALOG: Dict[str, Dict] = {
 
-    # ── PII ──────────────────────────────────────────────────────────────
-    "first_name":       {"frameworks": ["PII", "GDPR"],         "field_type": "person_name",         "default_action": "fake_realistic"},
-    "last_name":        {"frameworks": ["PII", "GDPR"],         "field_type": "person_name",         "default_action": "fake_realistic"},
-    "full_name":        {"frameworks": ["PII", "GDPR"],         "field_type": "person_name",         "default_action": "fake_realistic"},
-    "email":            {"frameworks": ["PII", "GDPR", "CCPA"], "field_type": "email_address",       "default_action": "fake_realistic"},
-    "phone":            {"frameworks": ["PII", "GDPR", "CCPA"], "field_type": "phone_number",        "default_action": "fake_realistic"},
-    "mobile":           {"frameworks": ["PII", "GDPR", "CCPA"], "field_type": "phone_number",        "default_action": "fake_realistic"},
-    "fax":              {"frameworks": ["PII"],                  "field_type": "phone_number",        "default_action": "fake_realistic"},
-    "address":          {"frameworks": ["PII", "GDPR", "CCPA"], "field_type": "postal_address",      "default_action": "fake_realistic"},
-    "street":           {"frameworks": ["PII", "GDPR"],         "field_type": "postal_address",      "default_action": "fake_realistic"},
-    "city":             {"frameworks": ["PII", "GDPR"],         "field_type": "city",                "default_action": "fake_realistic"},
-    "country":          {"frameworks": ["PII", "GDPR"],         "field_type": "country",             "default_action": "fake_realistic"},
-    "state":            {"frameworks": ["PII"],                  "field_type": "state",               "default_action": "fake_realistic"},
-    "region":           {"frameworks": ["PII"],                  "field_type": "state",               "default_action": "fake_realistic"},
-    "ssn":              {"frameworks": ["PII", "HIPAA"],         "field_type": "social_security",     "default_action": "format_preserving"},
-    "social_security":  {"frameworks": ["PII", "HIPAA"],         "field_type": "social_security",     "default_action": "format_preserving"},
-    "national_id":      {"frameworks": ["PII", "GDPR"],         "field_type": "national_identifier", "default_action": "format_preserving"},
-    "dob":              {"frameworks": ["PII", "GDPR", "HIPAA"],"field_type": "date_of_birth",       "default_action": "fake_realistic"},
-    "date_of_birth":    {"frameworks": ["PII", "GDPR", "HIPAA"],"field_type": "date_of_birth",       "default_action": "fake_realistic"},
-    "birth_date":       {"frameworks": ["PII", "GDPR", "HIPAA"],"field_type": "date_of_birth",       "default_action": "fake_realistic"},
-    "birth_year":       {"frameworks": ["PII", "GDPR"],         "field_type": "date_of_birth",       "default_action": "fake_realistic"},
-    "age":              {"frameworks": ["PII", "GDPR"],         "field_type": "age",                 "default_action": "fake_realistic"},
-    "passport":         {"frameworks": ["PII", "GDPR"],         "field_type": "passport_number",     "default_action": "format_preserving"},
-    "driver_license":   {"frameworks": ["PII"],                  "field_type": "drivers_license",     "default_action": "format_preserving"},
-    "license_number":   {"frameworks": ["PII"],                  "field_type": "license_identifier",  "default_action": "format_preserving"},
-    "ip_address":       {"frameworks": ["PII", "GDPR"],         "field_type": "ip_address",          "default_action": "mask"},
-    "ip":               {"frameworks": ["PII", "GDPR"],         "field_type": "ip_address",          "default_action": "mask"},
-    "device_id":        {"frameworks": ["PII", "GDPR", "CCPA"], "field_type": "device_identifier",   "default_action": "mask"},
-    "mac_address":      {"frameworks": ["PII", "GDPR"],         "field_type": "device_identifier",   "default_action": "mask"},
-    "cookie":           {"frameworks": ["GDPR", "CCPA"],        "field_type": "cookie_id",           "default_action": "mask"},
-    "session_id":       {"frameworks": ["GDPR"],                "field_type": "session_identifier",  "default_action": "mask"},
-    "geolocation":      {"frameworks": ["PII", "GDPR", "CCPA"], "field_type": "location_data",       "default_action": "mask"},
-    "latitude":         {"frameworks": ["PII", "GDPR"],         "field_type": "location_data",       "default_action": "mask"},
-    "longitude":        {"frameworks": ["PII", "GDPR"],         "field_type": "location_data",       "default_action": "mask"},
-    "gender":           {"frameworks": ["PII", "GDPR"],         "field_type": "demographic",         "default_action": "fake_realistic"},
-    "race":             {"frameworks": ["PII", "GDPR"],         "field_type": "sensitive_category",  "default_action": "redact"},
-    "ethnicity":        {"frameworks": ["PII", "GDPR"],         "field_type": "sensitive_category",  "default_action": "redact"},
-    "religion":         {"frameworks": ["PII", "GDPR"],         "field_type": "sensitive_category",  "default_action": "redact"},
-    "political":        {"frameworks": ["GDPR"],                "field_type": "sensitive_category",  "default_action": "redact"},
-    "sexual":           {"frameworks": ["PII", "GDPR"],         "field_type": "sensitive_category",  "default_action": "redact"},
-    "biometric":        {"frameworks": ["PII", "GDPR", "CCPA"], "field_type": "biometric_data",      "default_action": "redact"},
-    "fingerprint":      {"frameworks": ["PII", "GDPR", "CCPA"], "field_type": "biometric_data",      "default_action": "redact"},
-    "retina":           {"frameworks": ["PII", "GDPR"],         "field_type": "biometric_data",      "default_action": "redact"},
-    "username":         {"frameworks": ["PII"],                  "field_type": "user_identifier",     "default_action": "fake_realistic"},
+    # ══════════════════════════════════════════════════════════════════════
+    # PII — general personally identifiable information
+    # ══════════════════════════════════════════════════════════════════════
+    "first_name":           {"frameworks": ["PII", "GDPR"],              "field_type": "person_name",          "default_action": "fake_realistic"},
+    "last_name":            {"frameworks": ["PII", "GDPR"],              "field_type": "person_name",          "default_action": "fake_realistic"},
+    "full_name":            {"frameworks": ["PII", "GDPR"],              "field_type": "person_name",          "default_action": "fake_realistic"},
+    "name":                 {"frameworks": ["PII", "GDPR"],              "field_type": "person_name",          "default_action": "fake_realistic"},
+    "email":                {"frameworks": ["PII", "GDPR", "CCPA"],      "field_type": "email_address",        "default_action": "fake_realistic"},
+    "email_address":        {"frameworks": ["PII", "GDPR", "CCPA"],      "field_type": "email_address",        "default_action": "fake_realistic"},
+    "phone":                {"frameworks": ["PII", "GDPR", "CCPA"],      "field_type": "phone_number",         "default_action": "fake_realistic"},
+    "phone_number":         {"frameworks": ["PII", "GDPR", "CCPA"],      "field_type": "phone_number",         "default_action": "fake_realistic"},
+    "mobile":               {"frameworks": ["PII", "GDPR", "CCPA"],      "field_type": "phone_number",         "default_action": "fake_realistic"},
+    "cell":                 {"frameworks": ["PII", "GDPR"],              "field_type": "phone_number",         "default_action": "fake_realistic"},
+    # HIPAA PHI #5 — fax numbers
+    "fax":                  {"frameworks": ["PII", "HIPAA"],             "field_type": "fax_number",           "default_action": "fake_realistic"},
+    "fax_number":           {"frameworks": ["PII", "HIPAA"],             "field_type": "fax_number",           "default_action": "fake_realistic"},
+    # Postal address (HIPAA PHI #2 — geographic sub-state)
+    "address":              {"frameworks": ["PII", "GDPR", "HIPAA", "CCPA"], "field_type": "postal_address",   "default_action": "fake_realistic"},
+    "street":               {"frameworks": ["PII", "GDPR", "HIPAA"],    "field_type": "postal_address",       "default_action": "fake_realistic"},
+    "street_address":       {"frameworks": ["PII", "GDPR", "HIPAA"],    "field_type": "postal_address",       "default_action": "fake_realistic"},
+    "city":                 {"frameworks": ["PII", "GDPR"],             "field_type": "city",                 "default_action": "fake_realistic"},
+    "state":                {"frameworks": ["PII"],                      "field_type": "state",                "default_action": "fake_realistic"},
+    "region":               {"frameworks": ["PII"],                      "field_type": "state",                "default_action": "fake_realistic"},
+    "country":              {"frameworks": ["PII", "GDPR"],             "field_type": "country",              "default_action": "fake_realistic"},
+    # HIPAA PHI #2 — zip/postal code (3-digit prefix is PHI; full zip more so)
+    "zip":                  {"frameworks": ["PII", "HIPAA", "GDPR"],    "field_type": "zip_code",             "default_action": "mask"},
+    "zip_code":             {"frameworks": ["PII", "HIPAA", "GDPR"],    "field_type": "zip_code",             "default_action": "mask"},
+    "postal_code":          {"frameworks": ["PII", "HIPAA", "GDPR"],    "field_type": "zip_code",             "default_action": "mask"},
+    "postcode":             {"frameworks": ["PII", "HIPAA", "GDPR"],    "field_type": "zip_code",             "default_action": "mask"},
+    "county":               {"frameworks": ["PII", "HIPAA"],            "field_type": "geographic_unit",      "default_action": "mask"},
+    "district":             {"frameworks": ["PII", "HIPAA"],            "field_type": "geographic_unit",      "default_action": "mask"},
+    # National identifiers
+    "ssn":                  {"frameworks": ["PII", "HIPAA"],            "field_type": "social_security",      "default_action": "format_preserving"},
+    "social_security":      {"frameworks": ["PII", "HIPAA"],            "field_type": "social_security",      "default_action": "format_preserving"},
+    "national_id":          {"frameworks": ["PII", "GDPR"],             "field_type": "national_identifier",  "default_action": "format_preserving"},
+    "national_insurance":   {"frameworks": ["PII", "GDPR"],             "field_type": "national_identifier",  "default_action": "format_preserving"},
+    "nino":                 {"frameworks": ["PII", "GDPR"],             "field_type": "national_identifier",  "default_action": "format_preserving"},
+    # Dates (HIPAA PHI #3 — all dates except year)
+    "dob":                  {"frameworks": ["PII", "GDPR", "HIPAA"],    "field_type": "date_of_birth",        "default_action": "fake_realistic"},
+    "date_of_birth":        {"frameworks": ["PII", "GDPR", "HIPAA"],    "field_type": "date_of_birth",        "default_action": "fake_realistic"},
+    "birth_date":           {"frameworks": ["PII", "GDPR", "HIPAA"],    "field_type": "date_of_birth",        "default_action": "fake_realistic"},
+    "birthday":             {"frameworks": ["PII", "GDPR", "HIPAA"],    "field_type": "date_of_birth",        "default_action": "fake_realistic"},
+    "birth_year":           {"frameworks": ["PII", "GDPR"],             "field_type": "date_of_birth",        "default_action": "fake_realistic"},
+    "age":                  {"frameworks": ["PII", "GDPR"],             "field_type": "age",                  "default_action": "fake_realistic"},
+    # Travel documents (HIPAA PHI #11 — certificate/license numbers)
+    "passport":             {"frameworks": ["PII", "GDPR", "HIPAA"],    "field_type": "passport_number",      "default_action": "format_preserving"},
+    "passport_number":      {"frameworks": ["PII", "GDPR", "HIPAA"],    "field_type": "passport_number",      "default_action": "format_preserving"},
+    "driver_license":       {"frameworks": ["PII", "HIPAA"],            "field_type": "drivers_license",      "default_action": "format_preserving"},
+    "drivers_license":      {"frameworks": ["PII", "HIPAA"],            "field_type": "drivers_license",      "default_action": "format_preserving"},
+    "license_number":       {"frameworks": ["PII", "HIPAA"],            "field_type": "license_identifier",   "default_action": "format_preserving"},
+    "certificate_number":   {"frameworks": ["PII", "HIPAA"],            "field_type": "certificate_number",   "default_action": "format_preserving"},
+    "certificate_id":       {"frameworks": ["PII", "HIPAA"],            "field_type": "certificate_number",   "default_action": "format_preserving"},
+    # Vehicle identifiers (HIPAA PHI #12 — VINs and serial numbers)
+    "vin":                  {"frameworks": ["PII", "HIPAA"],            "field_type": "vehicle_identifier",   "default_action": "format_preserving"},
+    "vehicle_id":           {"frameworks": ["PII", "HIPAA"],            "field_type": "vehicle_identifier",   "default_action": "format_preserving"},
+    "plate_number":         {"frameworks": ["PII", "HIPAA"],            "field_type": "vehicle_identifier",   "default_action": "format_preserving"},
+    "license_plate":        {"frameworks": ["PII", "HIPAA"],            "field_type": "vehicle_identifier",   "default_action": "format_preserving"},
+    # Network/device identifiers (HIPAA PHI #13-15 — device IDs, URLs, IPs)
+    "ip_address":           {"frameworks": ["PII", "GDPR", "HIPAA"],   "field_type": "ip_address",           "default_action": "mask"},
+    "ip":                   {"frameworks": ["PII", "GDPR", "HIPAA"],   "field_type": "ip_address",           "default_action": "mask"},
+    "device_id":            {"frameworks": ["PII", "GDPR", "HIPAA", "CCPA"], "field_type": "device_identifier", "default_action": "mask"},
+    "mac_address":          {"frameworks": ["PII", "GDPR", "HIPAA"],   "field_type": "device_identifier",    "default_action": "mask"},
+    "imei":                 {"frameworks": ["PII", "GDPR", "HIPAA"],   "field_type": "device_identifier",    "default_action": "mask"},
+    "url":                  {"frameworks": ["PII", "GDPR", "HIPAA"],   "field_type": "web_url",              "default_action": "mask"},
+    "website":              {"frameworks": ["PII", "GDPR"],             "field_type": "web_url",              "default_action": "mask"},
+    "web_url":              {"frameworks": ["PII", "GDPR", "HIPAA"],   "field_type": "web_url",              "default_action": "mask"},
+    "profile_url":          {"frameworks": ["PII", "GDPR"],             "field_type": "web_url",              "default_action": "mask"},
+    "cookie":               {"frameworks": ["GDPR", "CCPA"],           "field_type": "cookie_id",            "default_action": "mask"},
+    "session_id":           {"frameworks": ["GDPR"],                    "field_type": "session_identifier",   "default_action": "mask"},
+    # Photos (HIPAA PHI #17 — full-face photos)
+    "photo":                {"frameworks": ["PII", "GDPR", "HIPAA"],   "field_type": "photo",                "default_action": "redact"},
+    "avatar":               {"frameworks": ["PII", "GDPR"],             "field_type": "photo",                "default_action": "redact"},
+    "profile_photo":        {"frameworks": ["PII", "GDPR", "HIPAA"],   "field_type": "photo",                "default_action": "redact"},
+    "profile_image":        {"frameworks": ["PII", "GDPR", "HIPAA"],   "field_type": "photo",                "default_action": "redact"},
+    "face_scan":            {"frameworks": ["PII", "GDPR", "HIPAA"],   "field_type": "biometric_data",       "default_action": "redact"},
+    # Location
+    "geolocation":          {"frameworks": ["PII", "GDPR", "CCPA"],    "field_type": "location_data",        "default_action": "mask"},
+    "latitude":             {"frameworks": ["PII", "GDPR"],             "field_type": "location_data",        "default_action": "mask"},
+    "longitude":            {"frameworks": ["PII", "GDPR"],             "field_type": "location_data",        "default_action": "mask"},
+    # User identity
+    "username":             {"frameworks": ["PII"],                     "field_type": "user_identifier",      "default_action": "fake_realistic"},
+    "user_id":              {"frameworks": ["PII", "GDPR"],             "field_type": "user_identifier",      "default_action": "format_preserving"},
+    "employee_id":          {"frameworks": ["PII", "SOX"],              "field_type": "employee_identifier",  "default_action": "format_preserving"},
+    # Demographics
+    "gender":               {"frameworks": ["PII", "GDPR"],             "field_type": "demographic",          "default_action": "fake_realistic"},
+    "sex":                  {"frameworks": ["PII", "GDPR"],             "field_type": "demographic",          "default_action": "fake_realistic"},
+    # GDPR Article 9 Special Categories — require explicit consent and carry highest protection
+    "race":                 {"frameworks": ["PII", "GDPR"],             "field_type": "special_category",     "default_action": "redact"},
+    "ethnicity":            {"frameworks": ["PII", "GDPR"],             "field_type": "special_category",     "default_action": "redact"},
+    "ethnic_origin":        {"frameworks": ["PII", "GDPR"],             "field_type": "special_category",     "default_action": "redact"},
+    "religion":             {"frameworks": ["PII", "GDPR"],             "field_type": "special_category",     "default_action": "redact"},
+    "religious_belief":     {"frameworks": ["PII", "GDPR"],             "field_type": "special_category",     "default_action": "redact"},
+    "political":            {"frameworks": ["GDPR"],                    "field_type": "special_category",     "default_action": "redact"},
+    "political_opinion":    {"frameworks": ["GDPR"],                    "field_type": "special_category",     "default_action": "redact"},
+    "political_affiliation":{"frameworks": ["GDPR"],                    "field_type": "special_category",     "default_action": "redact"},
+    "political_party":      {"frameworks": ["GDPR"],                    "field_type": "special_category",     "default_action": "redact"},
+    "trade_union":          {"frameworks": ["GDPR"],                    "field_type": "special_category",     "default_action": "redact"},
+    "union_membership":     {"frameworks": ["GDPR"],                    "field_type": "special_category",     "default_action": "redact"},
+    "sexual":               {"frameworks": ["PII", "GDPR"],             "field_type": "special_category",     "default_action": "redact"},
+    "sexual_orientation":   {"frameworks": ["PII", "GDPR"],             "field_type": "special_category",     "default_action": "redact"},
+    # Biometrics (GDPR Art.9 + HIPAA PHI #16)
+    "biometric":            {"frameworks": ["PII", "GDPR", "HIPAA", "CCPA"], "field_type": "biometric_data", "default_action": "redact"},
+    "fingerprint":          {"frameworks": ["PII", "GDPR", "HIPAA", "CCPA"], "field_type": "biometric_data", "default_action": "redact"},
+    "retina":               {"frameworks": ["PII", "GDPR", "HIPAA"],   "field_type": "biometric_data",       "default_action": "redact"},
+    "iris":                 {"frameworks": ["PII", "GDPR", "HIPAA"],   "field_type": "biometric_data",       "default_action": "redact"},
+    "voice_print":          {"frameworks": ["PII", "GDPR", "HIPAA"],   "field_type": "biometric_data",       "default_action": "redact"},
+    # Genetic data (GDPR Art.9)
+    "genetic_data":         {"frameworks": ["PII", "GDPR"],             "field_type": "genetic_data",         "default_action": "redact"},
+    "genome":               {"frameworks": ["PII", "GDPR"],             "field_type": "genetic_data",         "default_action": "redact"},
+    "dna":                  {"frameworks": ["PII", "GDPR"],             "field_type": "genetic_data",         "default_action": "redact"},
+    "snp":                  {"frameworks": ["PII", "GDPR"],             "field_type": "genetic_data",         "default_action": "redact"},
 
-    # ── PCI DSS ──────────────────────────────────────────────────────────
-    "credit_card":      {"frameworks": ["PCI"],                  "field_type": "card_number",         "default_action": "format_preserving"},
-    "card_number":      {"frameworks": ["PCI"],                  "field_type": "card_number",         "default_action": "format_preserving"},
-    "cc_number":        {"frameworks": ["PCI"],                  "field_type": "card_number",         "default_action": "format_preserving"},
-    "pan":              {"frameworks": ["PCI"],                  "field_type": "card_number",         "default_action": "format_preserving"},
-    "cvv":              {"frameworks": ["PCI"],                  "field_type": "card_cvv",            "default_action": "redact"},
-    "cvc":              {"frameworks": ["PCI"],                  "field_type": "card_cvv",            "default_action": "redact"},
-    "card_expiry":      {"frameworks": ["PCI"],                  "field_type": "card_expiry",         "default_action": "fake_realistic"},
-    "expiry_date":      {"frameworks": ["PCI"],                  "field_type": "card_expiry",         "default_action": "fake_realistic"},
-    "account_number":   {"frameworks": ["PCI", "SOX", "GLBA"],  "field_type": "account_number",      "default_action": "format_preserving"},
-    "routing_number":   {"frameworks": ["PCI", "GLBA"],         "field_type": "routing_number",      "default_action": "format_preserving"},
-    "iban":             {"frameworks": ["PCI", "GDPR", "GLBA"], "field_type": "bank_account",        "default_action": "format_preserving"},
-    "bank_account":     {"frameworks": ["PCI", "GLBA"],         "field_type": "bank_account",        "default_action": "format_preserving"},
-    "swift":            {"frameworks": ["PCI", "GLBA"],         "field_type": "swift_bic",           "default_action": "format_preserving"},
-    "sort_code":        {"frameworks": ["PCI", "GLBA"],         "field_type": "sort_code",           "default_action": "format_preserving"},
-    "credit_score":     {"frameworks": ["GLBA", "PII"],         "field_type": "credit_score",        "default_action": "fake_realistic"},
-    "loan_id":          {"frameworks": ["GLBA", "SOX"],         "field_type": "loan_identifier",     "default_action": "format_preserving"},
-    "principal_amount": {"frameworks": ["SOX", "GLBA"],         "field_type": "loan_amount",         "default_action": "fake_realistic"},
-    "outstanding_balance": {"frameworks": ["SOX", "GLBA"],      "field_type": "loan_balance",        "default_action": "fake_realistic"},
-    "kyc_status":       {"frameworks": ["GLBA", "PII"],         "field_type": "kyc_status",          "default_action": "fake_realistic"},
-    "risk_rating":      {"frameworks": ["GLBA", "SOX"],         "field_type": "risk_rating",         "default_action": "fake_realistic"},
+    # ══════════════════════════════════════════════════════════════════════
+    # PCI DSS — cardholder data (CHD) and sensitive authentication data (SAD)
+    # CHD: PAN, cardholder name, expiry, service code
+    # SAD (must never be stored post-auth): CVV, PIN, full magnetic stripe
+    # ══════════════════════════════════════════════════════════════════════
+    "credit_card":          {"frameworks": ["PCI"],                     "field_type": "card_number",          "default_action": "format_preserving"},
+    "card_number":          {"frameworks": ["PCI"],                     "field_type": "card_number",          "default_action": "format_preserving"},
+    "cc_number":            {"frameworks": ["PCI"],                     "field_type": "card_number",          "default_action": "format_preserving"},
+    "pan":                  {"frameworks": ["PCI"],                     "field_type": "card_number",          "default_action": "format_preserving"},
+    "cardholder_name":      {"frameworks": ["PCI", "PII"],              "field_type": "cardholder_name",      "default_action": "fake_realistic"},
+    "card_expiry":          {"frameworks": ["PCI"],                     "field_type": "card_expiry",          "default_action": "fake_realistic"},
+    "expiry_date":          {"frameworks": ["PCI"],                     "field_type": "card_expiry",          "default_action": "fake_realistic"},
+    "expiration_date":      {"frameworks": ["PCI"],                     "field_type": "card_expiry",          "default_action": "fake_realistic"},
+    "service_code":         {"frameworks": ["PCI"],                     "field_type": "card_service_code",    "default_action": "redact"},
+    # SAD — must be redacted (never stored post-auth per PCI-DSS Req.3.2)
+    "cvv":                  {"frameworks": ["PCI"],                     "field_type": "card_cvv",             "default_action": "redact"},
+    "cvc":                  {"frameworks": ["PCI"],                     "field_type": "card_cvv",             "default_action": "redact"},
+    "csc":                  {"frameworks": ["PCI"],                     "field_type": "card_cvv",             "default_action": "redact"},
+    "pin":                  {"frameworks": ["PCI"],                     "field_type": "pin_block",            "default_action": "redact"},
+    "pin_block":            {"frameworks": ["PCI"],                     "field_type": "pin_block",            "default_action": "redact"},
+    "track_data":           {"frameworks": ["PCI"],                     "field_type": "magnetic_stripe",      "default_action": "redact"},
+    "magnetic_stripe":      {"frameworks": ["PCI"],                     "field_type": "magnetic_stripe",      "default_action": "redact"},
+    # Bank / payment identifiers
+    "account_number":       {"frameworks": ["PCI", "SOX", "GLBA"],     "field_type": "account_number",       "default_action": "format_preserving"},
+    "bank_account":         {"frameworks": ["PCI", "GLBA"],             "field_type": "bank_account",         "default_action": "format_preserving"},
+    "routing_number":       {"frameworks": ["PCI", "GLBA"],             "field_type": "routing_number",       "default_action": "format_preserving"},
+    "iban":                 {"frameworks": ["PCI", "GDPR", "GLBA"],    "field_type": "bank_account",         "default_action": "format_preserving"},
+    "swift":                {"frameworks": ["PCI", "GLBA"],             "field_type": "swift_bic",            "default_action": "format_preserving"},
+    "sort_code":            {"frameworks": ["PCI", "GLBA"],             "field_type": "sort_code",            "default_action": "format_preserving"},
+    "bsb":                  {"frameworks": ["PCI", "GLBA"],             "field_type": "sort_code",            "default_action": "format_preserving"},
 
-    # ── HIPAA ─────────────────────────────────────────────────────────────
-    "diagnosis":        {"frameworks": ["HIPAA"],               "field_type": "medical_diagnosis",   "default_action": "fake_realistic"},
-    "icd":              {"frameworks": ["HIPAA"],               "field_type": "diagnosis_code",      "default_action": "fake_realistic"},
-    "mrn":              {"frameworks": ["HIPAA"],               "field_type": "medical_record_no",   "default_action": "format_preserving"},
-    "medical_record":   {"frameworks": ["HIPAA"],               "field_type": "medical_record_no",   "default_action": "format_preserving"},
-    "npi":              {"frameworks": ["HIPAA"],               "field_type": "provider_id",         "default_action": "fake_realistic"},
-    "patient_id":       {"frameworks": ["HIPAA"],               "field_type": "patient_identifier",  "default_action": "format_preserving"},
-    "health_plan":      {"frameworks": ["HIPAA"],               "field_type": "insurance_info",      "default_action": "fake_realistic"},
-    "insurance_id":     {"frameworks": ["HIPAA", "PII"],        "field_type": "insurance_number",    "default_action": "format_preserving"},
-    "member_id":        {"frameworks": ["HIPAA", "PII"],        "field_type": "insurance_member_id", "default_action": "format_preserving"},
-    "prescription":     {"frameworks": ["HIPAA"],               "field_type": "prescription",        "default_action": "fake_realistic"},
-    "medication":       {"frameworks": ["HIPAA"],               "field_type": "medication",          "default_action": "fake_realistic"},
-    "drug":             {"frameworks": ["HIPAA"],               "field_type": "medication",          "default_action": "fake_realistic"},
-    "treatment":        {"frameworks": ["HIPAA"],               "field_type": "treatment_info",      "default_action": "fake_realistic"},
-    "procedure":        {"frameworks": ["HIPAA"],               "field_type": "medical_procedure",   "default_action": "fake_realistic"},
-    "lab_result":       {"frameworks": ["HIPAA"],               "field_type": "lab_result",          "default_action": "fake_realistic"},
-    "test_result":      {"frameworks": ["HIPAA"],               "field_type": "lab_result",          "default_action": "fake_realistic"},
-    "dea_number":       {"frameworks": ["HIPAA"],               "field_type": "dea_number",          "default_action": "format_preserving"},
-    "admission_date":   {"frameworks": ["HIPAA"],               "field_type": "service_date",        "default_action": "fake_realistic"},
-    "discharge_date":   {"frameworks": ["HIPAA"],               "field_type": "service_date",        "default_action": "fake_realistic"},
-    "service_date":     {"frameworks": ["HIPAA"],               "field_type": "service_date",        "default_action": "fake_realistic"},
-    "provider_name":    {"frameworks": ["HIPAA"],               "field_type": "provider_name",       "default_action": "fake_realistic"},
-    "attending":        {"frameworks": ["HIPAA"],               "field_type": "provider_name",       "default_action": "fake_realistic"},
+    # ══════════════════════════════════════════════════════════════════════
+    # GLBA — Gramm-Leach-Bliley: covers non-public personal financial info
+    # ══════════════════════════════════════════════════════════════════════
+    "credit_score":         {"frameworks": ["GLBA", "PII"],             "field_type": "credit_score",         "default_action": "fake_realistic"},
+    "credit_rating":        {"frameworks": ["GLBA", "PII"],             "field_type": "credit_score",         "default_action": "fake_realistic"},
+    "fico_score":           {"frameworks": ["GLBA", "PII"],             "field_type": "credit_score",         "default_action": "fake_realistic"},
+    "loan_id":              {"frameworks": ["GLBA", "SOX"],             "field_type": "loan_identifier",      "default_action": "format_preserving"},
+    "loan_number":          {"frameworks": ["GLBA", "SOX"],             "field_type": "loan_identifier",      "default_action": "format_preserving"},
+    "principal_amount":     {"frameworks": ["SOX", "GLBA"],             "field_type": "loan_amount",          "default_action": "fake_realistic"},
+    "loan_amount":          {"frameworks": ["SOX", "GLBA"],             "field_type": "loan_amount",          "default_action": "fake_realistic"},
+    "outstanding_balance":  {"frameworks": ["SOX", "GLBA"],             "field_type": "loan_balance",         "default_action": "fake_realistic"},
+    "annual_income":        {"frameworks": ["GLBA", "PII"],             "field_type": "income",               "default_action": "mask"},
+    "gross_income":         {"frameworks": ["GLBA", "PII"],             "field_type": "income",               "default_action": "mask"},
+    "net_worth":            {"frameworks": ["GLBA", "PII"],             "field_type": "income",               "default_action": "mask"},
+    "investment_account":   {"frameworks": ["GLBA"],                    "field_type": "investment_data",      "default_action": "format_preserving"},
+    "brokerage_account":    {"frameworks": ["GLBA"],                    "field_type": "investment_data",      "default_action": "format_preserving"},
+    "kyc_status":           {"frameworks": ["GLBA", "PII"],             "field_type": "kyc_status",           "default_action": "fake_realistic"},
+    "risk_rating":          {"frameworks": ["GLBA", "SOX"],             "field_type": "risk_rating",          "default_action": "fake_realistic"},
+    "aml_flag":             {"frameworks": ["GLBA", "SOX"],             "field_type": "aml_data",             "default_action": "fake_realistic"},
 
-    # ── SOX ──────────────────────────────────────────────────────────────
-    "salary":           {"frameworks": ["SOX", "PII"],          "field_type": "compensation",        "default_action": "mask"},
-    "compensation":     {"frameworks": ["SOX", "PII"],          "field_type": "compensation",        "default_action": "mask"},
-    "bonus":            {"frameworks": ["SOX", "PII"],          "field_type": "compensation",        "default_action": "mask"},
-    "revenue":          {"frameworks": ["SOX"],                  "field_type": "financial_data",      "default_action": "mask"},
-    "earnings":         {"frameworks": ["SOX"],                  "field_type": "financial_data",      "default_action": "mask"},
-    "tax_id":           {"frameworks": ["SOX", "PII"],          "field_type": "tax_identifier",      "default_action": "format_preserving"},
-    "ein":              {"frameworks": ["SOX"],                  "field_type": "employer_id",         "default_action": "format_preserving"},
-    "tin":              {"frameworks": ["SOX", "PII"],          "field_type": "taxpayer_id",         "default_action": "format_preserving"},
-    "audit_log":        {"frameworks": ["SOX"],                  "field_type": "audit_trail",         "default_action": "fake_realistic"},
+    # ══════════════════════════════════════════════════════════════════════
+    # HIPAA — 18 PHI Safe Harbor identifiers (45 CFR §164.514(b))
+    # ══════════════════════════════════════════════════════════════════════
+    "diagnosis":            {"frameworks": ["HIPAA"],                   "field_type": "medical_diagnosis",    "default_action": "fake_realistic"},
+    "icd":                  {"frameworks": ["HIPAA"],                   "field_type": "diagnosis_code",       "default_action": "fake_realistic"},
+    "icd_code":             {"frameworks": ["HIPAA"],                   "field_type": "diagnosis_code",       "default_action": "fake_realistic"},
+    "mrn":                  {"frameworks": ["HIPAA"],                   "field_type": "medical_record_no",    "default_action": "format_preserving"},
+    "medical_record":       {"frameworks": ["HIPAA"],                   "field_type": "medical_record_no",    "default_action": "format_preserving"},
+    "medical_record_number":{"frameworks": ["HIPAA"],                   "field_type": "medical_record_no",    "default_action": "format_preserving"},
+    "npi":                  {"frameworks": ["HIPAA"],                   "field_type": "provider_id",          "default_action": "fake_realistic"},
+    "provider_id":          {"frameworks": ["HIPAA"],                   "field_type": "provider_id",          "default_action": "format_preserving"},
+    "patient_id":           {"frameworks": ["HIPAA", "PII"],            "field_type": "patient_identifier",   "default_action": "format_preserving"},
+    "patient_number":       {"frameworks": ["HIPAA", "PII"],            "field_type": "patient_identifier",   "default_action": "format_preserving"},
+    # Health plan beneficiary numbers (PHI #9)
+    "health_plan":          {"frameworks": ["HIPAA"],                   "field_type": "health_plan_number",   "default_action": "fake_realistic"},
+    "health_plan_id":       {"frameworks": ["HIPAA"],                   "field_type": "health_plan_number",   "default_action": "format_preserving"},
+    "beneficiary_id":       {"frameworks": ["HIPAA", "PII"],            "field_type": "health_plan_number",   "default_action": "format_preserving"},
+    "plan_id":              {"frameworks": ["HIPAA"],                   "field_type": "health_plan_number",   "default_action": "format_preserving"},
+    "insurance_id":         {"frameworks": ["HIPAA", "PII"],            "field_type": "insurance_number",     "default_action": "format_preserving"},
+    "insurance_number":     {"frameworks": ["HIPAA", "PII"],            "field_type": "insurance_number",     "default_action": "format_preserving"},
+    "member_id":            {"frameworks": ["HIPAA", "PII"],            "field_type": "insurance_member_id",  "default_action": "format_preserving"},
+    "group_number":         {"frameworks": ["HIPAA"],                   "field_type": "health_plan_number",   "default_action": "format_preserving"},
+    # Clinical data
+    "prescription":         {"frameworks": ["HIPAA"],                   "field_type": "prescription",         "default_action": "fake_realistic"},
+    "medication":           {"frameworks": ["HIPAA"],                   "field_type": "medication",           "default_action": "fake_realistic"},
+    "drug":                 {"frameworks": ["HIPAA"],                   "field_type": "medication",           "default_action": "fake_realistic"},
+    "drug_name":            {"frameworks": ["HIPAA"],                   "field_type": "medication",           "default_action": "fake_realistic"},
+    "treatment":            {"frameworks": ["HIPAA"],                   "field_type": "treatment_info",       "default_action": "fake_realistic"},
+    "procedure":            {"frameworks": ["HIPAA"],                   "field_type": "medical_procedure",    "default_action": "fake_realistic"},
+    "procedure_code":       {"frameworks": ["HIPAA"],                   "field_type": "medical_procedure",    "default_action": "fake_realistic"},
+    "cpt_code":             {"frameworks": ["HIPAA"],                   "field_type": "medical_procedure",    "default_action": "fake_realistic"},
+    "lab_result":           {"frameworks": ["HIPAA"],                   "field_type": "lab_result",           "default_action": "fake_realistic"},
+    "test_result":          {"frameworks": ["HIPAA"],                   "field_type": "lab_result",           "default_action": "fake_realistic"},
+    "vital_sign":           {"frameworks": ["HIPAA"],                   "field_type": "clinical_observation", "default_action": "fake_realistic"},
+    "blood_pressure":       {"frameworks": ["HIPAA"],                   "field_type": "clinical_observation", "default_action": "fake_realistic"},
+    "dea_number":           {"frameworks": ["HIPAA"],                   "field_type": "dea_number",           "default_action": "format_preserving"},
+    # Service/clinical dates (HIPAA PHI #3 — all dates except year)
+    "admission_date":       {"frameworks": ["HIPAA"],                   "field_type": "service_date",         "default_action": "fake_realistic"},
+    "discharge_date":       {"frameworks": ["HIPAA"],                   "field_type": "service_date",         "default_action": "fake_realistic"},
+    "service_date":         {"frameworks": ["HIPAA"],                   "field_type": "service_date",         "default_action": "fake_realistic"},
+    "death_date":           {"frameworks": ["HIPAA"],                   "field_type": "service_date",         "default_action": "fake_realistic"},
+    # Provider identifiers
+    "provider_name":        {"frameworks": ["HIPAA"],                   "field_type": "provider_name",        "default_action": "fake_realistic"},
+    "attending":            {"frameworks": ["HIPAA"],                   "field_type": "provider_name",        "default_action": "fake_realistic"},
+    "attending_physician":  {"frameworks": ["HIPAA"],                   "field_type": "provider_name",        "default_action": "fake_realistic"},
+    "ordering_provider":    {"frameworks": ["HIPAA"],                   "field_type": "provider_name",        "default_action": "fake_realistic"},
+    # Health conditions (GDPR Art.9 special category when outside US)
+    "health_condition":     {"frameworks": ["HIPAA", "GDPR"],          "field_type": "health_data",          "default_action": "fake_realistic"},
+    "medical_history":      {"frameworks": ["HIPAA", "GDPR"],          "field_type": "health_data",          "default_action": "redact"},
+    "allergy":              {"frameworks": ["HIPAA", "GDPR"],          "field_type": "health_data",          "default_action": "fake_realistic"},
+    "disability":           {"frameworks": ["HIPAA", "GDPR"],          "field_type": "health_data",          "default_action": "redact"},
+    "mental_health":        {"frameworks": ["HIPAA", "GDPR"],          "field_type": "health_data",          "default_action": "redact"},
 
-    # ── FERPA ─────────────────────────────────────────────────────────────
-    "student_id":       {"frameworks": ["FERPA", "PII"],        "field_type": "student_identifier",  "default_action": "format_preserving"},
-    "gpa":              {"frameworks": ["FERPA"],               "field_type": "academic_record",     "default_action": "fake_realistic"},
-    "grade":            {"frameworks": ["FERPA"],               "field_type": "academic_record",     "default_action": "fake_realistic"},
-    "transcript":       {"frameworks": ["FERPA"],               "field_type": "academic_record",     "default_action": "fake_realistic"},
-    "enrollment":       {"frameworks": ["FERPA"],               "field_type": "enrollment_info",     "default_action": "fake_realistic"},
-    "course":           {"frameworks": ["FERPA"],               "field_type": "course_info",         "default_action": "fake_realistic"},
-    "academic":         {"frameworks": ["FERPA"],               "field_type": "academic_record",     "default_action": "fake_realistic"},
-    "financial_aid":    {"frameworks": ["FERPA", "SOX"],        "field_type": "financial_aid",       "default_action": "mask"},
+    # ══════════════════════════════════════════════════════════════════════
+    # SOX — Sarbanes-Oxley: financial records and executive compensation
+    # ══════════════════════════════════════════════════════════════════════
+    "salary":               {"frameworks": ["SOX", "PII"],              "field_type": "compensation",         "default_action": "mask"},
+    "compensation":         {"frameworks": ["SOX", "PII"],              "field_type": "compensation",         "default_action": "mask"},
+    "bonus":                {"frameworks": ["SOX", "PII"],              "field_type": "compensation",         "default_action": "mask"},
+    "wage":                 {"frameworks": ["SOX", "PII"],              "field_type": "compensation",         "default_action": "mask"},
+    "hourly_rate":          {"frameworks": ["SOX", "PII"],              "field_type": "compensation",         "default_action": "mask"},
+    "stock_option":         {"frameworks": ["SOX"],                     "field_type": "equity_data",          "default_action": "mask"},
+    "equity_grant":         {"frameworks": ["SOX"],                     "field_type": "equity_data",          "default_action": "mask"},
+    "revenue":              {"frameworks": ["SOX"],                     "field_type": "financial_data",       "default_action": "mask"},
+    "earnings":             {"frameworks": ["SOX"],                     "field_type": "financial_data",       "default_action": "mask"},
+    "net_income":           {"frameworks": ["SOX"],                     "field_type": "financial_data",       "default_action": "mask"},
+    "tax_id":               {"frameworks": ["SOX", "PII"],              "field_type": "tax_identifier",       "default_action": "format_preserving"},
+    "ein":                  {"frameworks": ["SOX"],                     "field_type": "employer_id",          "default_action": "format_preserving"},
+    "tin":                  {"frameworks": ["SOX", "PII"],              "field_type": "taxpayer_id",          "default_action": "format_preserving"},
+    "vat_number":           {"frameworks": ["SOX", "GDPR"],             "field_type": "tax_identifier",       "default_action": "format_preserving"},
+    "audit_log":            {"frameworks": ["SOX"],                     "field_type": "audit_trail",          "default_action": "fake_realistic"},
+    "audit_trail":          {"frameworks": ["SOX"],                     "field_type": "audit_trail",          "default_action": "fake_realistic"},
+    "financial_statement":  {"frameworks": ["SOX"],                     "field_type": "financial_data",       "default_action": "mask"},
+    "internal_control":     {"frameworks": ["SOX"],                     "field_type": "audit_trail",          "default_action": "fake_realistic"},
+
+    # ══════════════════════════════════════════════════════════════════════
+    # FERPA — educational records (20 U.S.C. § 1232g)
+    # ══════════════════════════════════════════════════════════════════════
+    "student_id":           {"frameworks": ["FERPA", "PII"],            "field_type": "student_identifier",   "default_action": "format_preserving"},
+    "student_number":       {"frameworks": ["FERPA", "PII"],            "field_type": "student_identifier",   "default_action": "format_preserving"},
+    "gpa":                  {"frameworks": ["FERPA"],                   "field_type": "academic_record",      "default_action": "fake_realistic"},
+    "grade":                {"frameworks": ["FERPA"],                   "field_type": "academic_record",      "default_action": "fake_realistic"},
+    "grade_point":          {"frameworks": ["FERPA"],                   "field_type": "academic_record",      "default_action": "fake_realistic"},
+    "transcript":           {"frameworks": ["FERPA"],                   "field_type": "academic_record",      "default_action": "fake_realistic"},
+    "enrollment":           {"frameworks": ["FERPA"],                   "field_type": "enrollment_info",      "default_action": "fake_realistic"},
+    "enrollment_status":    {"frameworks": ["FERPA"],                   "field_type": "enrollment_info",      "default_action": "fake_realistic"},
+    "course":               {"frameworks": ["FERPA"],                   "field_type": "course_info",          "default_action": "fake_realistic"},
+    "course_id":            {"frameworks": ["FERPA"],                   "field_type": "course_info",          "default_action": "fake_realistic"},
+    "academic":             {"frameworks": ["FERPA"],                   "field_type": "academic_record",      "default_action": "fake_realistic"},
+    "financial_aid":        {"frameworks": ["FERPA", "SOX"],            "field_type": "financial_aid",        "default_action": "mask"},
+    "scholarship":          {"frameworks": ["FERPA", "SOX"],            "field_type": "financial_aid",        "default_action": "mask"},
+    "discipline_record":    {"frameworks": ["FERPA"],                   "field_type": "discipline_record",    "default_action": "redact"},
+    "disciplinary":         {"frameworks": ["FERPA"],                   "field_type": "discipline_record",    "default_action": "redact"},
+    "special_education":    {"frameworks": ["FERPA", "HIPAA"],         "field_type": "special_ed_record",    "default_action": "redact"},
+    "iep":                  {"frameworks": ["FERPA", "HIPAA"],         "field_type": "special_ed_record",    "default_action": "redact"},
 }
 
 # Per-framework default recommendation text shown to users
 FRAMEWORK_RECOMMENDATIONS: Dict[str, str] = {
     "PII":   "Generate realistic but completely synthetic values — no real personal data",
-    "PCI":   "Use format-valid non-live values (Luhn-valid card numbers, valid IBANs) — never real card data",
-    "HIPAA": "Apply HIPAA Safe Harbor de-identification: replace with synthetic equivalents preserving statistical utility",
-    "GDPR":  "Pseudonymize or anonymize — output must not be re-linkable to an EU/EEA data subject",
+    "PCI":   "Use format-valid non-live values (Luhn-valid card numbers, valid IBANs) — never real CHD/SAD",
+    "HIPAA": "Apply HIPAA Safe Harbor de-identification (45 CFR §164.514): replace all 18 PHI identifiers with synthetic equivalents",
+    "GDPR":  "Pseudonymize or anonymize — output must not be re-linkable to an EU/EEA data subject; redact Article 9 special categories",
     "CCPA":  "Anonymize for California consumer data — support right-to-delete patterns",
     "SOX":   "Use masked or range-bucketed financial values; preserve referential integrity for audit trails",
-    "FERPA": "Replace with synthetic student identifiers; preserve grade distribution patterns",
+    "FERPA": "Replace with synthetic student identifiers; preserve grade distribution patterns without linking to real students",
+    "GLBA":  "Protect non-public personal financial information — use synthetic account numbers, masked income figures, fake credit scores",
 }
 
 FRAMEWORK_COLORS: Dict[str, str] = {
@@ -398,15 +546,19 @@ Rules:
     redact              – remove entirely (CVV, biometrics, political opinion)
 - Respond with ONLY valid JSON — no markdown, no code fences, no explanation.
 
-Framework quick-reference:
-  PII   → names, emails, phones, addresses, DOBs, SSNs, IPs, device IDs, demographics
-  PCI   → card numbers, CVV/CVC, expiry dates, bank accounts, routing/IBAN, SWIFT
-  HIPAA → patient IDs, MRNs, diagnoses, prescriptions, lab results, DOBs (medical),
-           SSNs, dates-of-service, provider names/IDs
-  GDPR  → any PII field for EU residents; national IDs, consent, IP addresses
-  CCPA  → any PII field for California residents
-  SOX   → salary, compensation, bonus, revenue, tax IDs, EINs, audit trails
-  FERPA → student IDs, grades, GPA, transcripts, enrollment, financial-aid records
+Framework quick-reference (use ALL that apply):
+  PII   → names, emails, phones, addresses, DOBs, SSNs, IPs, device IDs, demographics, usernames
+  PCI   → card numbers (PAN), CVV/CVC/CSC, expiry, service code, track data, PIN — also bank accounts/IBAN/SWIFT/routing
+  HIPAA → all 18 PHI: patient IDs, MRNs, DOBs, phone/fax/email, SSN, addresses+zip, dates-of-service,
+           health-plan beneficiary #s, certificate/license #s, VINs, device IDs, URLs, IPs, biometrics,
+           photos, diagnoses, prescriptions, lab results, provider names/IDs
+  GDPR  → any PII for EU/EEA residents; also Article 9 special categories: race/ethnicity, political opinion,
+           religion, trade union, genetic data, biometric, health data, sex life/orientation
+  CCPA  → any PII for California residents (opt-out, right to delete)
+  SOX   → salary, compensation, bonus, stock options, revenue, financial statements, tax IDs (EIN/TIN),
+           audit trails, internal controls
+  FERPA → student IDs, grades, GPA, transcripts, enrollment, course records, financial aid, discipline records
+  GLBA  → bank accounts, routing/IBAN/SWIFT, credit scores, loan data, income/net-worth, investment accounts, KYC/AML
 
 Response schema (one key per column name supplied):
 {
