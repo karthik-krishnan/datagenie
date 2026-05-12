@@ -455,10 +455,10 @@ export default function AttributeDistribution({ tables, characteristics, onUpdat
   };
 
   return (
-    <div className="border border-gray-200 rounded-xl overflow-hidden">
-      {/* Tab bar */}
+    <div>
+      {/* Dog-ear tabs — active tab connects flush to the panel below */}
       {tables.length > 1 && (
-        <div className="flex border-b border-gray-200 bg-gray-50 overflow-x-auto">
+        <div className="flex items-end gap-1 pl-3 overflow-x-auto">
           {tables.map((t, i) => {
             const cnt = countConfigured(t, characteristics);
             const active = i === safeTab;
@@ -466,16 +466,18 @@ export default function AttributeDistribution({ tables, characteristics, onUpdat
               <button
                 key={t.table_name}
                 onClick={() => handleTabChange(i)}
-                className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                className={[
+                  "flex items-center gap-2 px-4 py-2 text-sm font-medium whitespace-nowrap",
+                  "border rounded-t-lg transition-all select-none",
                   active
-                    ? "border-indigo-500 text-indigo-600 bg-white"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-                }`}
+                    ? "bg-white border-gray-200 [border-bottom-color:white] text-gray-900 relative z-10 -mb-px"
+                    : "bg-gray-100 border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 mt-1",
+                ].join(" ")}
               >
                 {t.table_name}
                 {cnt > 0 && (
-                  <span className={`text-xs rounded-full px-1.5 py-0.5 font-semibold ${
-                    active ? "bg-indigo-100 text-indigo-600" : "bg-gray-200 text-gray-500"
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
+                    active ? "bg-indigo-100 text-indigo-700" : "bg-gray-200 text-gray-500"
                   }`}>
                     {cnt}
                   </span>
@@ -486,8 +488,9 @@ export default function AttributeDistribution({ tables, characteristics, onUpdat
         </div>
       )}
 
-      {/* Active table panel */}
-      <div className="p-4">
+      {/* Active table panel — border runs all the way round; tabs sit on top */}
+      <div className={`border border-gray-200 bg-white ${tables.length > 1 ? "rounded-b-xl rounded-tr-xl" : "rounded-xl"}`}>
+        <div className="p-4">
         {tables.length === 1 && (
           <h3 className="font-medium text-gray-800 mb-2">{tables[0].table_name}</h3>
         )}
@@ -501,6 +504,7 @@ export default function AttributeDistribution({ tables, characteristics, onUpdat
           onUpdate={onUpdate}
           onSchemaUpdate={onSchemaUpdate}
         />
+        </div>
       </div>
     </div>
   );
