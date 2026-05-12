@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useAppStore } from "../../store/appStore.js";
 import { api } from "../../api/client.js";
 import { relativeTime } from "../../utils/relativeTime.js";
+import SettingsModal from "../Settings/SettingsModal.jsx";
 
 // ── Static demo starter cards ──────────────────────────────────────────────
 const DEMO_STARTERS = [
@@ -83,8 +84,15 @@ function FrameworkBadges({ complianceJson }) {
 }
 
 export default function ProfilePicker() {
-  const { setShowProfilePicker, loadProfile, applyInferResult } = useAppStore();
+  const { setShowProfilePicker, loadProfile, applyInferResult, showSettings, setShowSettings, llmSettings, appSettings } = useAppStore();
   const [profiles, setProfiles] = useState([]);
+
+  const isDemo = !llmSettings?.provider || llmSettings.provider === "demo";
+  const providerLabel = {
+    anthropic: "Anthropic", openai: "OpenAI", azure: "Azure OpenAI",
+    google: "Google", ollama: "Ollama", demo: "Demo",
+  }[llmSettings?.provider] ?? "Demo";
+  const modelLabel = !isDemo && llmSettings?.model ? llmSettings.model : null;
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -169,13 +177,29 @@ export default function ProfilePicker() {
             AI-assisted intelligent test data generator
           </p>
         </div>
-        <button
-          onClick={() => setShowProfilePicker(false)}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-medium text-sm"
-        >
-          <span>+</span> Start Fresh
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowSettings(true)}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+            title="Open Settings"
+          >
+            <span>⚙️</span>
+            <span className="font-medium">Settings</span>
+            <span className="flex items-center gap-1 text-xs text-gray-400 border-l border-gray-200 pl-2 ml-1">
+              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isDemo ? "bg-amber-400" : "bg-emerald-400"}`} />
+              {providerLabel}{modelLabel ? ` · ${modelLabel}` : ""}
+            </span>
+          </button>
+          <button
+            onClick={() => setShowProfilePicker(false)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-medium text-sm"
+          >
+            <span>+</span> Start Fresh
+          </button>
+        </div>
       </div>
+
+      {showSettings && <SettingsModal />}
 
       <div className="flex-1 px-8 py-6 max-w-6xl mx-auto w-full">
 
