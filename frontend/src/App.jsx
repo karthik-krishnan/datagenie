@@ -255,7 +255,7 @@ export default function App() {
       <header className="border-b border-gray-200 px-6 py-3 flex items-center justify-between bg-white">
         <button
           onClick={() => { reset(); setShowProfilePicker(true); }}
-          className="text-lg font-semibold flex items-center gap-2 hover:text-indigo-600 transition-colors"
+          className="text-lg font-semibold flex items-center gap-2 hover:text-indigo-600 transition-colors shrink-0"
           title="Back to home"
         >
           <img src="/favicon.svg" alt="DataGenie" className="w-8 h-8" />
