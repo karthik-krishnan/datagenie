@@ -170,7 +170,10 @@ export default function ProfilePicker() {
       <header className="border-b border-gray-200 px-6 py-3 flex items-center bg-white">
         <div className="flex items-center gap-2">
           <img src="/favicon.svg" alt="DataGenie" className="w-8 h-8" />
-          <span className="text-lg font-semibold">DataGenie</span>
+          <div className="flex flex-col items-start">
+            <span className="text-lg font-semibold">DataGenie</span>
+            <span className="text-xs font-normal text-gray-400 leading-none">AI-powered synthetic test data</span>
+          </div>
         </div>
       </header>
 
