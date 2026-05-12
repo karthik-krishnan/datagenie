@@ -4,48 +4,6 @@ DataGenie is a full-stack application that generates realistic, compliant synthe
 
 ---
 
-## 🚀 Quick Start
-
-### Prerequisites
-- Docker & Docker Compose
-
-### Production (Docker)
-
-```bash
-git clone git@github.com:karthik-krishnan/datagenie.git
-cd datagenie
-docker-compose up --build
-```
-
-Open **http://localhost:3001** | API docs: **http://localhost:8000/docs**
-
-> ⚠️ `docker-compose.yml` bakes code into the image — you must `docker-compose build backend && docker-compose up -d backend` after every backend Python change.
-
-### Development (hot reload)
-
-```bash
-# Start postgres + backend with hot reload
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
-
-# Frontend with Vite HMR (run separately)
-cd frontend && npm install && npm run dev   # → http://localhost:3001
-```
-
-Or run natively without Docker:
-
-```bash
-# Terminal 1 — backend
-cd backend && pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
-
-# Terminal 2 — frontend
-cd frontend && npm install && npm run dev   # → http://localhost:3001
-```
-
-The Vite dev server proxies `/api/*` to `http://localhost:8000` automatically.
-
----
-
 ## 📋 Generation Workflow
 
 | Stage | What happens |
@@ -213,6 +171,48 @@ datagenie/
 | Data generation | Faker, pandas, openpyxl, pyarrow |
 | LLM providers | Anthropic, OpenAI, Azure OpenAI, Google Generative AI, Ollama |
 | Containerisation | Docker, Docker Compose, nginx |
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Docker & Docker Compose
+
+### Production (Docker)
+
+```bash
+git clone git@github.com:karthik-krishnan/datagenie.git
+cd datagenie
+docker-compose up --build
+```
+
+Open **http://localhost:3001** | API docs: **http://localhost:8000/docs**
+
+> ⚠️ `docker-compose.yml` bakes code into the image — you must `docker-compose build backend && docker-compose up -d backend` after every backend Python change.
+
+### Development (hot reload)
+
+```bash
+# Start postgres + backend with hot reload
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+
+# Frontend with Vite HMR (run separately)
+cd frontend && npm install && npm run dev   # → http://localhost:3001
+```
+
+Or run natively without Docker:
+
+```bash
+# Terminal 1 — backend
+cd backend && pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+
+# Terminal 2 — frontend
+cd frontend && npm install && npm run dev   # → http://localhost:3001
+```
+
+The Vite dev server proxies `/api/*` to `http://localhost:8000` automatically.
 
 ---
 
