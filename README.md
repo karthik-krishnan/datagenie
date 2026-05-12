@@ -4,37 +4,61 @@ DataGenie is a full-stack application that generates realistic, compliant synthe
 
 ---
 
-## 📸 Screenshots
+## 🚀 Quick Start
 
-| | |
-|---|---|
-| ![Starter Templates](docs/screenshots/01-starter-templates.png) | ![Schema Inference](docs/screenshots/02-schema-infer.png) |
-| **Starter templates** — pick a pre-built multi-table schema | **Schema editor** — dog-ear tabs per table, type + sensitivity editing |
-| ![Characteristics](docs/screenshots/03-characteristics.png) | ![Value Distributions](docs/screenshots/04-distributions.png) |
-| **Characteristics** — volume, variable child counts, ranges | **Value distributions** — visual proportion chips per enum column |
-| ![Compliance](docs/screenshots/05-compliance.png) | ![Relationships](docs/screenshots/06-relationships.png) |
-| **Compliance review** — per-field masking across 8 frameworks | **Relationships** — parent→child (1:N) FK editor |
-| ![Preview](docs/screenshots/07-preview.png) | ![Settings](docs/screenshots/08-settings.png) |
-| **Output preview** — tabbed multi-table data preview | **Settings** — LLM provider + compliance feature toggle |
+### Prerequisites
+- Docker & Docker Compose
+
+### Production (Docker)
+
+```bash
+git clone git@github.com:karthik-krishnan/datagenie.git
+cd datagenie
+docker-compose up --build
+```
+
+Open **http://localhost:3001** | API docs: **http://localhost:8000/docs**
+
+> ⚠️ `docker-compose.yml` bakes code into the image — you must `docker-compose build backend && docker-compose up -d backend` after every backend Python change.
+
+### Development (hot reload)
+
+```bash
+# Start postgres + backend with hot reload
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+
+# Frontend with Vite HMR (run separately)
+cd frontend && npm install && npm run dev   # → http://localhost:3001
+```
+
+Or run natively without Docker:
+
+```bash
+# Terminal 1 — backend
+cd backend && pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+
+# Terminal 2 — frontend
+cd frontend && npm install && npm run dev   # → http://localhost:3001
+```
+
+The Vite dev server proxies `/api/*` to `http://localhost:8000` automatically.
+
+---
+
+## 📋 Generation Workflow
+
+| Stage | What happens |
+|-------|-------------|
+| **1 · Upload & Context** | Upload sample files and/or describe your data. DataGenie infers tables, columns, types, volume, and sensitivity. Edit schema inline using dog-ear tabs. |
+| **2 · Characteristics** | Set total volume, variable child counts per parent (min/max/shape), numeric ranges, and categorical value distributions. |
+| **3 · Compliance** | Auto-detected sensitive fields across 8 frameworks. Review and adjust per-field masking actions; write custom plain-English rules. *(Skipped if compliance is disabled in Settings or no sensitive fields detected.)* |
+| **4 · Relationships** | Confirm or edit parent→child FK relationships (1:N, 1:1, N:N). *(Skipped for single-table schemas.)* |
+| **5 · Output & Preview** | Pick a format, preview sample rows in tabbed view, then download. Multi-table schemas bundled as ZIP. |
 
 ---
 
 ## ✨ Features
-
-### Home Screen & Starter Templates
-- **Profile picker home screen** — consistent sidebar layout with Settings pinned at bottom-left
-- **5 demo templates** — instantly load a fully-configured multi-table schema; works in all modes including Demo
-- **Saved profiles** — reload any previous generation config (schema + compliance + output settings) with one click; searchable by name
-
-| Template | Schema | Frameworks |
-|----------|--------|------------|
-| 🛒 **E-Commerce Orders** | `customers → orders → order_items` | PCI, PII, GDPR |
-| 🏥 **Healthcare Patients** | `patients → visits + prescriptions` | HIPAA, PII, GDPR |
-| 👩‍💼 **HR & Payroll** | `employees → leave_requests` | SOX, PII, GDPR |
-| 🎓 **Student Records** | `students → enrollments` | FERPA, PII, GDPR |
-| 🏦 **Banking & Accounts** | `customers → accounts → transactions + loans` | PCI, GLBA, SOX, PII |
-
----
 
 ### Schema Inference (Stage 1)
 - **Natural language input** — describe your data in plain English and DataGenie infers tables, columns, types, volume, and compliance requirements
@@ -107,45 +131,33 @@ DataGenie is a full-stack application that generates realistic, compliant synthe
 
 ---
 
-## 🚀 Quick Start
+### Home Screen & Starter Templates
+- **Profile picker home screen** — consistent sidebar layout with Settings pinned at bottom-left
+- **5 demo templates** — instantly load a fully-configured multi-table schema; works in all modes including Demo
+- **Saved profiles** — reload any previous generation config (schema + compliance + output settings) with one click; searchable by name
 
-### Prerequisites
-- Docker & Docker Compose
+| Template | Schema | Frameworks |
+|----------|--------|------------|
+| 🛒 **E-Commerce Orders** | `customers → orders → order_items` | PCI, PII, GDPR |
+| 🏥 **Healthcare Patients** | `patients → visits + prescriptions` | HIPAA, PII, GDPR |
+| 👩‍💼 **HR & Payroll** | `employees → leave_requests` | SOX, PII, GDPR |
+| 🎓 **Student Records** | `students → enrollments` | FERPA, PII, GDPR |
+| 🏦 **Banking & Accounts** | `customers → accounts → transactions + loans` | PCI, GLBA, SOX, PII |
 
-### Production (Docker)
+---
 
-```bash
-git clone git@github.com:karthik-krishnan/datagenie.git
-cd datagenie
-docker-compose up --build
-```
+## 🤖 LLM Configuration
 
-Open **http://localhost:3001** | API docs: **http://localhost:8000/docs**
+Open **Settings (⚙️)** from the sidebar bottom-left. Config is stored in `localStorage` — no server-side storage.
 
-> ⚠️ `docker-compose.yml` bakes code into the image — you must `docker-compose build backend && docker-compose up -d backend` after every backend Python change.
-
-### Development (hot reload)
-
-```bash
-# Start postgres + backend with hot reload
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
-
-# Frontend with Vite HMR (run separately)
-cd frontend && npm install && npm run dev   # → http://localhost:3001
-```
-
-Or run natively without Docker:
-
-```bash
-# Terminal 1 — backend
-cd backend && pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
-
-# Terminal 2 — frontend
-cd frontend && npm install && npm run dev   # → http://localhost:3001
-```
-
-The Vite dev server proxies `/api/*` to `http://localhost:8000` automatically.
+| Provider | Notes |
+|---|---|
+| **Anthropic** | Claude Sonnet / Opus — recommended for best schema inference |
+| **OpenAI** | GPT-4o / GPT-4 Turbo |
+| **Azure OpenAI** | Requires endpoint and deployment name |
+| **Google** | Gemini 1.5 Pro / Flash |
+| **Ollama** | Local models (e.g. `llama3`), no API key needed |
+| **Demo** | No API key — rule-based inference only |
 
 ---
 
@@ -191,33 +203,6 @@ datagenie/
 
 ---
 
-## 🤖 LLM Configuration
-
-Open **Settings (⚙️)** from the sidebar bottom-left. Config is stored in `localStorage` — no server-side storage.
-
-| Provider | Notes |
-|---|---|
-| **Anthropic** | Claude Sonnet / Opus — recommended for best schema inference |
-| **OpenAI** | GPT-4o / GPT-4 Turbo |
-| **Azure OpenAI** | Requires endpoint and deployment name |
-| **Google** | Gemini 1.5 Pro / Flash |
-| **Ollama** | Local models (e.g. `llama3`), no API key needed |
-| **Demo** | No API key — rule-based inference only |
-
----
-
-## 📋 Generation Workflow
-
-| Stage | What happens |
-|-------|-------------|
-| **1 · Upload & Context** | Upload sample files and/or describe your data. DataGenie infers tables, columns, types, volume, and sensitivity. Edit schema inline using dog-ear tabs. |
-| **2 · Characteristics** | Set total volume, variable child counts per parent (min/max/shape), numeric ranges, and categorical value distributions. |
-| **3 · Compliance** | Auto-detected sensitive fields across 8 frameworks. Review and adjust per-field masking actions; write custom plain-English rules. *(Skipped if compliance is disabled in Settings or no sensitive fields detected.)* |
-| **4 · Relationships** | Confirm or edit parent→child FK relationships (1:N, 1:1, N:N). *(Skipped for single-table schemas.)* |
-| **5 · Output & Preview** | Pick a format, preview sample rows in tabbed view, then download. Multi-table schemas bundled as ZIP. |
-
----
-
 ## 🛠 Tech Stack
 
 | Layer | Technology |
@@ -228,6 +213,21 @@ Open **Settings (⚙️)** from the sidebar bottom-left. Config is stored in `lo
 | Data generation | Faker, pandas, openpyxl, pyarrow |
 | LLM providers | Anthropic, OpenAI, Azure OpenAI, Google Generative AI, Ollama |
 | Containerisation | Docker, Docker Compose, nginx |
+
+---
+
+## 📸 Screenshots
+
+| | |
+|---|---|
+| ![Starter Templates](docs/screenshots/01-starter-templates.png) | ![Schema Inference](docs/screenshots/02-schema-infer.png) |
+| **Starter templates** — pick a pre-built multi-table schema | **Schema editor** — dog-ear tabs per table, type + sensitivity editing |
+| ![Characteristics](docs/screenshots/03-characteristics.png) | ![Value Distributions](docs/screenshots/04-distributions.png) |
+| **Characteristics** — volume, variable child counts, ranges | **Value distributions** — visual proportion chips per enum column |
+| ![Compliance](docs/screenshots/05-compliance.png) | ![Relationships](docs/screenshots/06-relationships.png) |
+| **Compliance review** — per-field masking across 8 frameworks | **Relationships** — parent→child (1:N) FK editor |
+| ![Preview](docs/screenshots/07-preview.png) | ![Settings](docs/screenshots/08-settings.png) |
+| **Output preview** — tabbed multi-table data preview | **Settings** — LLM provider + compliance feature toggle |
 
 ---
 
