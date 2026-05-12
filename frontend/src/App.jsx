@@ -169,6 +169,10 @@ export default function App() {
   };
 
   const runPreview = async () => {
+    if (!inferredSchema) {
+      setError("Please infer a schema first (go back to Stage 1).");
+      return;
+    }
     setError(null);
     setLoading(true);
     try {
@@ -194,6 +198,10 @@ export default function App() {
   };
 
   const runGenerate = async () => {
+    if (!inferredSchema) {
+      setError("Please infer a schema first (go back to Stage 1).");
+      return;
+    }
     setError(null);
     setLoading(true);
     try {

@@ -17,11 +17,14 @@ export default function StageIndicator() {
   const appSettings = useAppStore((s) => s.appSettings);
 
   const complianceEnabled = appSettings?.complianceEnabled !== false;
+  const hasSchema = !!inferredSchema;
   // Mirror App.jsx: both pii_detected and sensitive_detected count, and toggle must be on
   const piiAvailable = complianceEnabled && !!(inferredSchema?.pii_detected || inferredSchema?.sensitive_detected);
   const relAvailable = uploadedFiles.length > 1 || (inferredSchema?.tables?.length || 0) > 1 || /relationship/i.test(contextText || "");
 
   const isAvailable = (n) => {
+    if (n === 1) return true;
+    if (!hasSchema) return false; // stages 2-5 all require an inferred schema
     if (n === 3) return piiAvailable;
     if (n === 4) return relAvailable;
     return true;
@@ -65,12 +68,15 @@ export default function StageIndicator() {
             </span>
             <div className="flex-1">
               <div className="text-sm font-medium">{s.label}</div>
-              {skipped && s.n === 3 && (
+              {skipped && (
                 <div className="text-[10px]">
-                  {!complianceEnabled ? "disabled in settings" : "not needed"}
+                  {!hasSchema && s.n > 1
+                    ? "infer schema first"
+                    : s.n === 3 && !complianceEnabled
+                    ? "disabled in settings"
+                    : "not needed"}
                 </div>
               )}
-              {skipped && s.n !== 3 && <div className="text-[10px]">not needed</div>}
             </div>
           </button>
         );
