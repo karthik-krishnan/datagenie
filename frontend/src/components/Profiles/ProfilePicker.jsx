@@ -165,43 +165,49 @@ export default function ProfilePicker() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-8 py-5 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold flex items-center gap-2">
-            <img src="/favicon.svg" alt="DataGenie" className="w-9 h-9" />
-            DataGenie
-          </h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            AI-assisted intelligent test data generator
-          </p>
+    <div className="h-screen bg-white text-gray-900 flex flex-col overflow-hidden">
+      {/* Header — mirrors App.jsx */}
+      <header className="border-b border-gray-200 px-6 py-3 flex items-center justify-between bg-white">
+        <div className="flex items-center gap-2">
+          <img src="/favicon.svg" alt="DataGenie" className="w-8 h-8" />
+          <span className="text-lg font-semibold">DataGenie</span>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowSettings(true)}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
-            title="Open Settings"
-          >
-            <span>⚙️</span>
-            <span className="font-medium">Settings</span>
-            <span className="flex items-center gap-1 text-xs text-gray-400 border-l border-gray-200 pl-2 ml-1">
-              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isDemo ? "bg-amber-400" : "bg-emerald-400"}`} />
-              {providerLabel}{modelLabel ? ` · ${modelLabel}` : ""}
-            </span>
-          </button>
-          <button
-            onClick={() => setShowProfilePicker(false)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-medium text-sm"
-          >
-            <span>+</span> Start Fresh
-          </button>
-        </div>
-      </div>
+        <button
+          onClick={() => setShowProfilePicker(false)}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-medium text-sm"
+        >
+          <span>+</span> Start Fresh
+        </button>
+      </header>
 
-      {showSettings && <SettingsModal />}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left sidebar — mirrors App.jsx */}
+        <aside className="w-60 bg-gray-100 border-r border-gray-200 flex flex-col">
+          <div className="flex-1" />
+          <div className="border-t border-gray-200 p-3">
+            <button
+              onClick={() => setShowSettings(true)}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-gray-200 transition-colors"
+              title="Open Settings"
+            >
+              <span className="text-lg">⚙️</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-gray-700">Settings</div>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isDemo ? "bg-amber-400" : "bg-emerald-400"}`} />
+                  <span className="text-xs text-gray-500">{providerLabel}</span>
+                </div>
+                {modelLabel && (
+                  <div className="text-xs text-gray-400 truncate mt-0.5" title={modelLabel}>{modelLabel}</div>
+                )}
+              </div>
+            </button>
+          </div>
+        </aside>
 
-      <div className="flex-1 px-8 py-6 max-w-6xl mx-auto w-full">
+        {/* Main scrollable content */}
+        <main className="flex-1 overflow-y-auto bg-gray-50">
+      <div className="px-8 py-6 max-w-6xl mx-auto w-full">
 
         {/* ── Demo starter templates ── */}
         <div className="mb-8">
@@ -378,7 +384,11 @@ export default function ProfilePicker() {
             </table>
           )}
         </div>
+        </div>
+        </main>
       </div>
+
+      {showSettings && <SettingsModal />}
     </div>
   );
 }
