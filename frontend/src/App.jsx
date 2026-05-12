@@ -244,7 +244,7 @@ export default function App() {
   const modelLabel  = !isDemo && llmSettings?.model ? llmSettings.model : null;
 
   return (
-    <div className="min-h-screen bg-white text-gray-900 flex flex-col">
+    <div className="h-screen bg-white text-gray-900 flex flex-col overflow-hidden">
       <header className="border-b border-gray-200 px-6 py-3 flex items-center justify-between bg-white">
         <button
           onClick={() => { reset(); setShowProfilePicker(true); }}
@@ -257,7 +257,7 @@ export default function App() {
 
       </header>
 
-      <div className="flex flex-1">
+      <div className="flex flex-1 overflow-hidden">
         <aside className="w-60 bg-gray-100 border-r border-gray-200 flex flex-col">
           <div className="p-4 flex-1">
             <StageIndicator />
