@@ -275,10 +275,13 @@ export default function App() {
                 <div className="text-sm font-medium text-gray-700">Settings</div>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isDemo ? "bg-amber-400" : "bg-emerald-400"}`} />
-                  <span className="text-xs text-gray-500 truncate">
-                    {providerLabel}{modelLabel ? ` · ${modelLabel}` : ""}
-                  </span>
+                  <span className="text-xs text-gray-500">{providerLabel}</span>
                 </div>
+                {modelLabel && (
+                  <div className="text-xs text-gray-400 truncate mt-0.5" title={modelLabel}>
+                    {modelLabel}
+                  </div>
+                )}
               </div>
             </button>
           </div>
