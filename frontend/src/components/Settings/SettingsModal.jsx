@@ -83,201 +83,208 @@ export default function SettingsModal() {
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-6 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">LLM Provider Settings</h2>
-          <button onClick={() => setShowSettings(false)} className="text-gray-500 hover:text-gray-800 text-2xl leading-none">×</button>
-        </div>
+      {/* Modal: flex-col so the footer is always visible regardless of content height */}
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
 
-        {/* localStorage disclaimer */}
-        <div className="bg-blue-50 border border-blue-200 text-blue-800 rounded-lg px-4 py-3 mb-4 text-sm flex items-start gap-2">
-          <span className="text-base">🔒</span>
-          <span>Your API key is stored only in <strong>this browser's localStorage</strong> — it is never sent to or stored on our servers. Clearing browser data will remove it.</span>
-        </div>
-
-        {provider === "demo" && (
-          <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg px-4 py-3 mb-4 text-sm">
-            Running on sample generation — no API key required.
+        {/* ── Scrollable content area ─────────────────────────────────────── */}
+        <div className="overflow-y-auto flex-1 min-h-0 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">Settings</h2>
+            <button onClick={() => setShowSettings(false)} className="text-gray-500 hover:text-gray-800 text-2xl leading-none">×</button>
           </div>
-        )}
 
-        <div className="grid grid-cols-3 gap-3 mb-6">
-          {PROVIDERS.map((p) => (
-            <ProviderCard
-              key={p.id}
-              id={p.id}
-              title={p.title}
-              subtitle={p.subtitle}
-              selected={provider === p.id}
-              onSelect={selectProvider}
-            />
-          ))}
-        </div>
+          {/* localStorage disclaimer */}
+          <div className="bg-blue-50 border border-blue-200 text-blue-800 rounded-lg px-4 py-3 mb-4 text-sm flex items-start gap-2">
+            <span className="text-base">🔒</span>
+            <span>Your API key is stored only in <strong>this browser's localStorage</strong> — it is never sent to or stored on our servers. Clearing browser data will remove it.</span>
+          </div>
 
-        <div className="space-y-4">
-          {/* API Key field */}
-          {needsKey && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">API Key</label>
-
-              {apiKey && !editingKey ? (
-                /* Key exists in localStorage — show masked badge */
-                <div className="flex items-center gap-2 border border-green-300 bg-green-50 rounded-lg px-3 py-2">
-                  <span className="text-green-700 text-sm">✓</span>
-                  <span className="flex-1 text-sm text-green-800 font-medium tracking-widest">••••••••••••••••</span>
-                  <span className="text-xs text-green-600 mr-2">Saved in browser</span>
-                  <button
-                    type="button"
-                    onClick={() => { setEditingKey(true); setApiKey(""); setTestResult(null); }}
-                    className="text-xs text-indigo-600 hover:text-indigo-800 border border-indigo-200 rounded px-2 py-0.5 bg-white hover:bg-indigo-50"
-                  >
-                    Change
-                  </button>
-                </div>
-              ) : (
-                /* No key or user clicked Change */
-                <div>
-                  {editingKey && (
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <span className="text-xs text-amber-700">Enter a new key to replace the saved one.</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const saved = getLLMConfig();
-                          setApiKey(saved.provider === provider ? (saved.api_key || "") : "");
-                          setEditingKey(false);
-                        }}
-                        className="text-xs text-gray-400 hover:text-gray-600 underline"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  )}
-                  <input
-                    type="password"
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    placeholder="Enter API key"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-indigo-500"
-                    autoFocus
-                  />
-                </div>
-              )}
+          {provider === "demo" && (
+            <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg px-4 py-3 mb-4 text-sm">
+              Running on sample generation — no API key required.
             </div>
           )}
 
-          {/* Azure extras */}
-          {provider === "azure" && (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Azure Endpoint</label>
-                <input
-                  value={extra.endpoint || ""}
-                  onChange={(e) => setExtra({ ...extra, endpoint: e.target.value })}
-                  placeholder="https://your-resource.openai.azure.com"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-indigo-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Deployment Name</label>
-                <input
-                  value={extra.deployment || ""}
-                  onChange={(e) => setExtra({ ...extra, deployment: e.target.value })}
-                  placeholder="gpt-4o-deployment"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-indigo-500"
-                />
-              </div>
-            </>
-          )}
+          <div className="grid grid-cols-3 gap-3 mb-6">
+            {PROVIDERS.map((p) => (
+              <ProviderCard
+                key={p.id}
+                id={p.id}
+                title={p.title}
+                subtitle={p.subtitle}
+                selected={provider === p.id}
+                onSelect={selectProvider}
+              />
+            ))}
+          </div>
 
-          {/* Ollama extras */}
-          {provider === "ollama" && (
-            <>
+          <div className="space-y-4">
+            {/* API Key field */}
+            {needsKey && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Base URL</label>
-                <input
-                  value={extra.base_url || ""}
-                  onChange={(e) => setExtra({ ...extra, base_url: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-indigo-500"
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-1">API Key</label>
+
+                {apiKey && !editingKey ? (
+                  /* Key exists in localStorage — show masked badge */
+                  <div className="flex items-center gap-2 border border-green-300 bg-green-50 rounded-lg px-3 py-2">
+                    <span className="text-green-700 text-sm">✓</span>
+                    <span className="flex-1 text-sm text-green-800 font-medium tracking-widest">••••••••••••••••</span>
+                    <span className="text-xs text-green-600 mr-2">Saved in browser</span>
+                    <button
+                      type="button"
+                      onClick={() => { setEditingKey(true); setApiKey(""); setTestResult(null); }}
+                      className="text-xs text-indigo-600 hover:text-indigo-800 border border-indigo-200 rounded px-2 py-0.5 bg-white hover:bg-indigo-50"
+                    >
+                      Change
+                    </button>
+                  </div>
+                ) : (
+                  /* No key or user clicked Change */
+                  <div>
+                    {editingKey && (
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-xs text-amber-700">Enter a new key to replace the saved one.</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const saved = getLLMConfig();
+                            setApiKey(saved.provider === provider ? (saved.api_key || "") : "");
+                            setEditingKey(false);
+                          }}
+                          className="text-xs text-gray-400 hover:text-gray-600 underline"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+                    <input
+                      type="password"
+                      value={apiKey}
+                      onChange={(e) => setApiKey(e.target.value)}
+                      placeholder="Enter API key"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-indigo-500"
+                      autoFocus
+                    />
+                  </div>
+                )}
               </div>
+            )}
+
+            {/* Azure extras */}
+            {provider === "azure" && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Azure Endpoint</label>
+                  <input
+                    value={extra.endpoint || ""}
+                    onChange={(e) => setExtra({ ...extra, endpoint: e.target.value })}
+                    placeholder="https://your-resource.openai.azure.com"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Deployment Name</label>
+                  <input
+                    value={extra.deployment || ""}
+                    onChange={(e) => setExtra({ ...extra, deployment: e.target.value })}
+                    placeholder="gpt-4o-deployment"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-indigo-500"
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Ollama extras */}
+            {provider === "ollama" && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Base URL</label>
+                  <input
+                    value={extra.base_url || ""}
+                    onChange={(e) => setExtra({ ...extra, base_url: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Model Name</label>
+                  <input
+                    value={model}
+                    onChange={(e) => setModel(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-indigo-500"
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Model selector */}
+            {current?.models?.length > 0 && provider !== "ollama" && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Model Name</label>
-                <input
+                <label className="block text-sm font-medium text-gray-700 mb-1">Model</label>
+                <select
                   value={model}
                   onChange={(e) => setModel(e.target.value)}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-indigo-500"
-                />
+                >
+                  {current.models.map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
               </div>
-            </>
-          )}
+            )}
 
-          {/* Model selector */}
-          {current?.models?.length > 0 && provider !== "ollama" && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Model</label>
-              <select
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-indigo-500"
-              >
-                {current.models.map((m) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
-            </div>
-          )}
+            {err && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2 text-sm">{err}</div>}
 
-          {err && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2 text-sm">{err}</div>}
-
-          {testResult && (
-            <div className={`rounded-lg px-3 py-2 text-sm border ${testResult.ok ? "bg-green-50 border-green-200 text-green-800" : "bg-red-50 border-red-200 text-red-700"}`}>
-              {testResult.ok ? "✓" : "✗"} {testResult.message}
-            </div>
-          )}
-
-          {/* ── Features ───────────────────────────────────────────────────── */}
-          <div className="border-t border-gray-100 pt-4 mt-2">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Features</h3>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-800">Regulatory Compliance</p>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  Show sensitivity tagging, DLP frameworks, and compliance review steps.
-                  Turn off for simpler use cases.
-                </p>
+            {testResult && (
+              <div className={`rounded-lg px-3 py-2 text-sm border ${testResult.ok ? "bg-green-50 border-green-200 text-green-800" : "bg-red-50 border-red-200 text-red-700"}`}>
+                {testResult.ok ? "✓" : "✗"} {testResult.message}
               </div>
-              <button
-                type="button"
-                onClick={() => setComplianceEnabled((v) => !v)}
-                className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors ml-4 ${complianceEnabled ? "bg-indigo-500" : "bg-gray-300"}`}
-                role="switch"
-                aria-checked={complianceEnabled}
-              >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${complianceEnabled ? "translate-x-5" : "translate-x-0"}`}
-                />
-              </button>
-            </div>
-          </div>
+            )}
 
-          <div className="flex justify-between items-center pt-2">
-            <button
-              onClick={testConnection}
-              disabled={testing || provider === "demo" || !keyReady}
-              title={!keyReady ? "Enter an API key first" : ""}
-              className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-40 text-sm"
-            >
-              {testing ? <><Spinner /> Testing…</> : "🔌 Test Connection"}
-            </button>
-            <div className="flex gap-2">
-              <button onClick={() => setShowSettings(false)} className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50">Cancel</button>
-              <button onClick={save} className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
-                Save Settings
-              </button>
+            {/* ── Features ─────────────────────────────────────────────────── */}
+            <div className="border-t border-gray-100 pt-4 mt-2">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">Features</h3>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-800">Regulatory Compliance</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Show sensitivity tagging, DLP frameworks, and compliance review steps.
+                    Turn off for simpler use cases.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setComplianceEnabled((v) => !v)}
+                  className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors ml-4 ${complianceEnabled ? "bg-indigo-500" : "bg-gray-300"}`}
+                  role="switch"
+                  aria-checked={complianceEnabled}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${complianceEnabled ? "translate-x-5" : "translate-x-0"}`}
+                  />
+                </button>
+              </div>
             </div>
           </div>
         </div>
+
+        {/* ── Sticky footer — always visible ──────────────────────────────── */}
+        <div className="flex-shrink-0 border-t border-gray-200 bg-white px-6 py-4 rounded-b-2xl flex justify-between items-center">
+          <button
+            onClick={testConnection}
+            disabled={testing || provider === "demo" || !keyReady}
+            title={!keyReady ? "Enter an API key first" : ""}
+            className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-40 text-sm"
+          >
+            {testing ? <><Spinner /> Testing…</> : "🔌 Test Connection"}
+          </button>
+          <div className="flex gap-2">
+            <button onClick={() => setShowSettings(false)} className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50">Cancel</button>
+            <button onClick={save} className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
+              Save Settings
+            </button>
+          </div>
+        </div>
+
       </div>
     </div>
   );
