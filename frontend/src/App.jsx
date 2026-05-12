@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAppStore } from "./store/appStore.js";
 import { api } from "./api/client.js";
 import StageIndicator from "./components/common/StageIndicator.jsx";
@@ -110,11 +110,18 @@ export default function App() {
     applyInferResult,
   } = useAppStore();
 
+  const [schemaTab, setSchemaTab] = useState(0);
+
   useEffect(() => {
     if (!sessionId) {
       api.createSession().then((s) => setSessionId(s.session_id)).catch(() => {});
     }
   }, [sessionId, setSessionId]);
+
+  // Reset schema tab when schema changes (e.g. re-infer or new template)
+  useEffect(() => {
+    setSchemaTab(0);
+  }, [inferredSchema]);
 
   // Wipe stale preview whenever the user navigates away from the Output stage
   useEffect(() => {
@@ -320,46 +327,70 @@ export default function App() {
                       </span>
                     )}
                   </div>
-                  {inferredSchema.tables.map((t, i) => (
-                    <SchemaCard
-                      key={i}
-                      table={t}
-                      complianceEnabled={complianceEnabled}
-                      onChange={(updated) => {
-                        // Detect any column renames so we can keep compliance rules in sync
-                        const renames = {};
-                        updated.columns.forEach((col, idx) => {
-                          const old = t.columns[idx];
-                          if (old && old.name !== col.name) renames[old.name] = col.name;
-                        });
-
-                        updateSchema((s) => {
-                          const next = {
-                            ...s,
-                            tables: s.tables.map((tt, idx) => (idx === i ? updated : tt)),
-                          };
-                          // Patch extracted.compliance_rules keys to new names
-                          if (Object.keys(renames).length > 0 && s.extracted?.compliance_rules) {
-                            const patched = {};
-                            for (const [k, v] of Object.entries(s.extracted.compliance_rules)) {
-                              patched[renames[k] ?? k] = v;
-                            }
-                            next.extracted = { ...s.extracted, compliance_rules: patched };
-                          }
-                          return next;
-                        });
-
-                        // Also rename keys in the complianceRules store
-                        if (Object.keys(renames).length > 0) {
-                          const patched = {};
-                          for (const [k, v] of Object.entries(complianceRules)) {
-                            patched[renames[k] ?? k] = v;
-                          }
-                          setComplianceRules(patched);
-                        }
-                      }}
-                    />
-                  ))}
+                  {/* Dog-ear tabs — same pattern as AttributeDistribution */}
+                  <div>
+                    {inferredSchema.tables.length > 1 && (
+                      <div className="flex items-end gap-1 pl-3 overflow-x-auto">
+                        {inferredSchema.tables.map((t, i) => (
+                          <button
+                            key={t.table_name}
+                            onClick={() => setSchemaTab(i)}
+                            className={[
+                              "flex items-center px-4 py-2 text-sm font-medium whitespace-nowrap",
+                              "border rounded-t-lg transition-all select-none",
+                              schemaTab === i
+                                ? "bg-white border-gray-200 [border-bottom-color:white] text-gray-900 relative z-10 -mb-px"
+                                : "bg-gray-100 border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 mt-1",
+                            ].join(" ")}
+                          >
+                            {t.table_name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {(() => {
+                      const i = schemaTab;
+                      const t = inferredSchema.tables[i];
+                      if (!t) return null;
+                      return (
+                        <div className={inferredSchema.tables.length > 1 ? "border border-gray-200 rounded-b-xl rounded-tr-xl overflow-hidden" : ""}>
+                          <SchemaCard
+                            key={i}
+                            table={t}
+                            complianceEnabled={complianceEnabled}
+                            onChange={(updated) => {
+                              const renames = {};
+                              updated.columns.forEach((col, idx) => {
+                                const old = t.columns[idx];
+                                if (old && old.name !== col.name) renames[old.name] = col.name;
+                              });
+                              updateSchema((s) => {
+                                const next = {
+                                  ...s,
+                                  tables: s.tables.map((tt, idx) => (idx === i ? updated : tt)),
+                                };
+                                if (Object.keys(renames).length > 0 && s.extracted?.compliance_rules) {
+                                  const patched = {};
+                                  for (const [k, v] of Object.entries(s.extracted.compliance_rules)) {
+                                    patched[renames[k] ?? k] = v;
+                                  }
+                                  next.extracted = { ...s.extracted, compliance_rules: patched };
+                                }
+                                return next;
+                              });
+                              if (Object.keys(renames).length > 0) {
+                                const patched = {};
+                                for (const [k, v] of Object.entries(complianceRules)) {
+                                  patched[renames[k] ?? k] = v;
+                                }
+                                setComplianceRules(patched);
+                              }
+                            }}
+                          />
+                        </div>
+                      );
+                    })()}
+                  </div>
 
                   {inferredSchema.relationships?.length > 0 && (
                     <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
