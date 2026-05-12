@@ -218,16 +218,26 @@ The Vite dev server proxies `/api/*` to `http://localhost:8000` automatically.
 
 ## 📸 Screenshots
 
-| | |
-|---|---|
-| ![Starter Templates](docs/screenshots/01-starter-templates.png) | ![Schema Inference](docs/screenshots/02-schema-infer.png) |
-| **Starter templates** — pick a pre-built multi-table schema | **Schema editor** — dog-ear tabs per table, type + sensitivity editing |
-| ![Characteristics](docs/screenshots/03-characteristics.png) | ![Value Distributions](docs/screenshots/04-distributions.png) |
-| **Characteristics** — volume, variable child counts, ranges | **Value distributions** — visual proportion chips per enum column |
-| ![Compliance](docs/screenshots/05-compliance.png) | ![Relationships](docs/screenshots/06-relationships.png) |
-| **Compliance review** — per-field masking across 8 frameworks | **Relationships** — parent→child (1:N) FK editor |
-| ![Preview](docs/screenshots/07-preview.png) | ![Settings](docs/screenshots/08-settings.png) |
-| **Output preview** — tabbed multi-table data preview | **Settings** — LLM provider + compliance feature toggle |
+<details>
+<summary>Click to expand screenshots</summary>
+<br/>
+
+<table>
+  <tr>
+    <td align="center"><a href="docs/screenshots/01-starter-templates.png"><img src="docs/screenshots/01-starter-templates.png" width="170"/></a><br/><sub>Starter templates</sub></td>
+    <td align="center"><a href="docs/screenshots/02-schema-infer.png"><img src="docs/screenshots/02-schema-infer.png" width="170"/></a><br/><sub>Schema editor</sub></td>
+    <td align="center"><a href="docs/screenshots/03-characteristics.png"><img src="docs/screenshots/03-characteristics.png" width="170"/></a><br/><sub>Characteristics</sub></td>
+    <td align="center"><a href="docs/screenshots/04-distributions.png"><img src="docs/screenshots/04-distributions.png" width="170"/></a><br/><sub>Value distributions</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="docs/screenshots/05-compliance.png"><img src="docs/screenshots/05-compliance.png" width="170"/></a><br/><sub>Compliance review</sub></td>
+    <td align="center"><a href="docs/screenshots/06-relationships.png"><img src="docs/screenshots/06-relationships.png" width="170"/></a><br/><sub>Relationships</sub></td>
+    <td align="center"><a href="docs/screenshots/07-preview.png"><img src="docs/screenshots/07-preview.png" width="170"/></a><br/><sub>Output preview</sub></td>
+    <td align="center"><a href="docs/screenshots/08-settings.png"><img src="docs/screenshots/08-settings.png" width="170"/></a><br/><sub>Settings</sub></td>
+  </tr>
+</table>
+
+</details>
 
 ---
 
