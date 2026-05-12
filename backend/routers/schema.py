@@ -198,13 +198,102 @@ async def infer(
     # --- Context-only mode: build schema from extracted columns ---
     # Only apply this single-entity override when _infer_schema_from_context did NOT
     # already produce a multi-table schema (i.e. schema has exactly one generic table).
+    _has_multi_table = (
+        not parsed_files
+        and extracted.get("tables")
+        and len(extracted["tables"]) > 1
+    )
     _context_only_single = (
         not parsed_files
+        and not _has_multi_table
         and extracted.get("columns")
         and len(schema.get("tables", [])) == 1
         and schema["tables"][0].get("table_name") in ("dataset", extracted.get("entity_type", ""))
     )
-    if _context_only_single:
+
+    if _has_multi_table:
+        # Build a fresh multi-table schema from extracted["tables"] and extracted["relationships"]
+        schema = {"tables": [], "relationships": []}
+
+        for tbl in extracted["tables"]:
+            tbl_name = tbl.get("name", "records")
+            tbl_columns = tbl.get("columns", [])
+
+            # Run LLM batch compliance on this table's columns
+            tbl_col_dicts = [
+                {"name": c.get("name", ""), "sample_values": []}
+                for c in tbl_columns if c.get("name")
+            ]
+            llm_tbl_batch = detect_compliance_batch_llm(
+                tbl_col_dicts, llm_provider_obj, context_text, domain_frameworks
+            )
+            llm_compliance_tbl = llm_tbl_batch["results"]
+            if llm_tbl_batch["warning"] and not llm_warning:
+                llm_warning = llm_tbl_batch["warning"]
+
+            cols = []
+            for c in tbl_columns:
+                name = c.get("name", "")
+                if not name:
+                    continue
+                # LLM result preferred; catalog/pattern fallback
+                compliance = (
+                    llm_compliance_tbl.get(name)
+                    or detect_compliance(name, [], domain_frameworks)
+                )
+                cr = extracted.get("compliance_rules", {}).get(name)
+                if cr and cr.get("pii_type") and not compliance["is_sensitive"]:
+                    compliance = {
+                        "is_sensitive": True,
+                        "frameworks": [cr["pii_type"]],
+                        "field_type": name,
+                        "default_action": "fake_realistic",
+                        "recommendations": {cr["pii_type"]: FRAMEWORK_RECOMMENDATIONS.get(cr["pii_type"], "")},
+                        "confidence": 0.9,
+                    }
+                if compliance["is_sensitive"]:
+                    sensitive_detected = True
+                    all_frameworks_detected.update(compliance["frameworks"])
+                cols.append({
+                    "name": name,
+                    "type": c.get("type", "string"),
+                    "sample_values": [],
+                    "pattern": name,
+                    "enum_values": c.get("enum_values", []),
+                    "pii": compliance,
+                })
+
+            # Root table gets the extracted volume; child tables default to 0
+            is_root = tbl.get("is_root", False)
+            row_count = extracted.get("volume") or 0 if is_root else 0
+
+            schema["tables"].append({
+                "table_name": tbl_name,
+                "filename": None,
+                "columns": cols,
+                "row_count": row_count,
+                "is_root": is_root,
+            })
+
+        # Build relationships with per_parent metadata for the frontend VolumeInput
+        for rel in extracted.get("relationships", []):
+            per_min = rel.get("per_parent_min")
+            per_max = rel.get("per_parent_max")
+            per_parent = None
+            if per_min is not None or per_max is not None:
+                per_parent = {
+                    "min": per_min,
+                    "max": per_max,
+                    "shape": "Uniform",
+                }
+            schema["relationships"].append({
+                "source_table": rel.get("source_table", ""),
+                "target_table": rel.get("target_table", ""),
+                "cardinality": "one_to_many",
+                "per_parent": per_parent,
+            })
+
+    elif _context_only_single:
         entity_type = extracted.get("entity_type", "records")
 
         # Run LLM batch compliance on the extracted column list (with retry)
