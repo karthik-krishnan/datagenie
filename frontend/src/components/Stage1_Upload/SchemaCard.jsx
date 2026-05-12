@@ -310,7 +310,7 @@ function EditableCell({ value, onChange, placeholder = "" }) {
 }
 
 // ── Main SchemaCard ────────────────────────────────────────────────────────
-export default function SchemaCard({ table, onChange }) {
+export default function SchemaCard({ table, onChange, complianceEnabled = true }) {
   const [editingName, setEditingName] = useState(false);
   const [tableName, setTableName] = useState(table.table_name);
 
@@ -406,7 +406,9 @@ export default function SchemaCard({ table, onChange }) {
               <th className="text-left px-4 py-2">Column name</th>
               <th className="text-left px-4 py-2">Type</th>
               <th className="text-left px-4 py-2">Values / Format</th>
-              <th className="text-left px-4 py-2">Sensitivity <span className="normal-case text-gray-400 font-normal">(click to edit)</span></th>
+              {complianceEnabled && (
+                <th className="text-left px-4 py-2">Sensitivity <span className="normal-case text-gray-400 font-normal">(click to edit)</span></th>
+              )}
               <th className="text-center px-3 py-2" title="Unique constraint — no duplicate values will be generated">Unique</th>
               <th className="px-4 py-2"></th>
             </tr>
@@ -500,12 +502,14 @@ export default function SchemaCard({ table, onChange }) {
                   </td>
 
                   {/* Sensitivity */}
-                  <td className="px-4 py-2">
-                    <SensitivityCell
-                      pii={c.pii}
-                      onChange={(newPii) => updateColumn(i, { pii: { ...newPii, confidence: 1.0 } })}
-                    />
-                  </td>
+                  {complianceEnabled && (
+                    <td className="px-4 py-2">
+                      <SensitivityCell
+                        pii={c.pii}
+                        onChange={(newPii) => updateColumn(i, { pii: { ...newPii, confidence: 1.0 } })}
+                      />
+                    </td>
+                  )}
 
                   {/* Unique constraint */}
                   <td className="px-3 py-2 text-center">

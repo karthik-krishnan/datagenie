@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { getLLMConfig, setLLMConfig } from "../utils/llmStorage.js";
+import { getLLMConfig, setLLMConfig, getAppSettings, setAppSettings } from "../utils/llmStorage.js";
 
 export const useAppStore = create((set, get) => ({
   currentStage: 1,
@@ -17,6 +17,7 @@ export const useAppStore = create((set, get) => ({
     xml_options: { xml_root: "root", xml_row: "row" },
   },
   llmSettings: getLLMConfig(),
+  appSettings: getAppSettings(),
   previewData: null,
   isLoading: false,
   error: null,
@@ -101,6 +102,7 @@ export const useAppStore = create((set, get) => ({
   },
   setOutputConfig: (c) => set({ outputConfig: { ...get().outputConfig, ...c } }),
   setLLMSettings: (s) => { setLLMConfig(s); set({ llmSettings: s }); },
+  setAppSettings: (s) => { setAppSettings(s); set({ appSettings: s }); },
   setPreviewData: (p) => set({ previewData: p }),
   setLoading: (b) => set({ isLoading: b }),
   setError: (e) => set({ error: e }),

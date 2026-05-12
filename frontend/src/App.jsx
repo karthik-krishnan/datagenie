@@ -102,6 +102,7 @@ export default function App() {
     error, setError,
     showSettings, setShowSettings,
     llmSettings,
+    appSettings,
     showProfilePicker, setShowProfilePicker,
     profileId,
     setShowSaveProfileModal,
@@ -126,7 +127,8 @@ export default function App() {
     return <ProfilePicker />;
   }
 
-  const piiAvailable = !!(inferredSchema?.pii_detected || inferredSchema?.sensitive_detected);
+  const complianceEnabled = appSettings?.complianceEnabled !== false;
+  const piiAvailable = complianceEnabled && !!(inferredSchema?.pii_detected || inferredSchema?.sensitive_detected);
   const relAvailable = uploadedFiles.length > 1 || (inferredSchema?.tables?.length || 0) > 1 || /relationship/i.test(contextText || "");
   const multiEntity = (inferredSchema?.tables?.length || 0) > 1;
 
@@ -315,6 +317,7 @@ export default function App() {
                     <SchemaCard
                       key={i}
                       table={t}
+                      complianceEnabled={complianceEnabled}
                       onChange={(updated) => {
                         // Detect any column renames so we can keep compliance rules in sync
                         const renames = {};

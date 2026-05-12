@@ -4,6 +4,7 @@ import { getLLMConfig, getProviderConfig } from "../../utils/llmStorage.js";
 import { api } from "../../api/client.js";
 import ProviderCard from "./ProviderCard.jsx";
 import Spinner from "../common/Spinner.jsx";
+import { getAppSettings } from "../../utils/llmStorage.js";
 
 const PROVIDERS = [
   { id: "anthropic", title: "Anthropic", subtitle: "Claude Sonnet/Opus", models: ["claude-sonnet-4-20250514", "claude-opus-4-20250514", "claude-3-5-sonnet-20241022"] },
@@ -17,6 +18,12 @@ const PROVIDERS = [
 export default function SettingsModal() {
   const setShowSettings = useAppStore((s) => s.setShowSettings);
   const setLLMSettings = useAppStore((s) => s.setLLMSettings);
+  const setAppSettings = useAppStore((s) => s.setAppSettings);
+
+  // Feature toggles — lazy-init from localStorage
+  const [complianceEnabled, setComplianceEnabled] = useState(
+    () => getAppSettings().complianceEnabled !== false
+  );
 
   // Lazy-init from localStorage so the masked badge is visible on the very first render
   // (rather than flashing an empty input while the effect fires).
@@ -70,6 +77,7 @@ export default function SettingsModal() {
     const prevKey = getProviderConfig(provider).api_key || "";
     const config = { provider, api_key: apiKey.trim() || prevKey, model, extra_config: extra };
     setLLMSettings(config); // writes per-provider to localStorage + updates store
+    setAppSettings({ complianceEnabled }); // persist feature flags
     setShowSettings(false);
   };
 
@@ -227,6 +235,31 @@ export default function SettingsModal() {
               {testResult.ok ? "✓" : "✗"} {testResult.message}
             </div>
           )}
+
+          {/* ── Features ───────────────────────────────────────────────────── */}
+          <div className="border-t border-gray-100 pt-4 mt-2">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Features</h3>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-800">Regulatory Compliance</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Show sensitivity tagging, DLP frameworks, and compliance review steps.
+                  Turn off for simpler use cases.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setComplianceEnabled((v) => !v)}
+                className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors ml-4 ${complianceEnabled ? "bg-indigo-500" : "bg-gray-300"}`}
+                role="switch"
+                aria-checked={complianceEnabled}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${complianceEnabled ? "translate-x-5" : "translate-x-0"}`}
+                />
+              </button>
+            </div>
+          </div>
 
           <div className="flex justify-between items-center pt-2">
             <button

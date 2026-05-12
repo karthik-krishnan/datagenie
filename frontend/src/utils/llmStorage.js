@@ -74,3 +74,28 @@ export function setLLMConfig(config) {
 export function clearLLMConfig() {
   localStorage.removeItem(LS_KEY);
 }
+
+// ── App-level feature settings (separate key, separate concern) ───────────────
+const APP_SETTINGS_KEY = "datagenie_settings";
+
+const DEFAULT_APP_SETTINGS = {
+  complianceEnabled: true,
+};
+
+export function getAppSettings() {
+  try {
+    const raw = localStorage.getItem(APP_SETTINGS_KEY);
+    if (!raw) return { ...DEFAULT_APP_SETTINGS };
+    return { ...DEFAULT_APP_SETTINGS, ...JSON.parse(raw) };
+  } catch {
+    return { ...DEFAULT_APP_SETTINGS };
+  }
+}
+
+export function setAppSettings(settings) {
+  try {
+    localStorage.setItem(APP_SETTINGS_KEY, JSON.stringify(settings));
+  } catch {
+    // storage quota exceeded or private browsing — silently ignore
+  }
+}
