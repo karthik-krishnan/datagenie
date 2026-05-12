@@ -14,9 +14,12 @@ export default function StageIndicator() {
   const inferredSchema = useAppStore((s) => s.inferredSchema);
   const contextText = useAppStore((s) => s.contextText);
   const uploadedFiles = useAppStore((s) => s.uploadedFiles);
+  const appSettings = useAppStore((s) => s.appSettings);
 
-  const piiAvailable = !!inferredSchema?.pii_detected;
-  const relAvailable = uploadedFiles.length > 1 || /relationship/i.test(contextText || "");
+  const complianceEnabled = appSettings?.complianceEnabled !== false;
+  // Mirror App.jsx: both pii_detected and sensitive_detected count, and toggle must be on
+  const piiAvailable = complianceEnabled && !!(inferredSchema?.pii_detected || inferredSchema?.sensitive_detected);
+  const relAvailable = uploadedFiles.length > 1 || (inferredSchema?.tables?.length || 0) > 1 || /relationship/i.test(contextText || "");
 
   const isAvailable = (n) => {
     if (n === 3) return piiAvailable;
@@ -62,7 +65,12 @@ export default function StageIndicator() {
             </span>
             <div className="flex-1">
               <div className="text-sm font-medium">{s.label}</div>
-              {skipped && <div className="text-[10px]">not needed</div>}
+              {skipped && s.n === 3 && (
+                <div className="text-[10px]">
+                  {!complianceEnabled ? "disabled in settings" : "not needed"}
+                </div>
+              )}
+              {skipped && s.n !== 3 && <div className="text-[10px]">not needed</div>}
             </div>
           </button>
         );
