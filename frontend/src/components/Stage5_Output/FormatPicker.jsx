@@ -4,7 +4,6 @@ const FORMAT_LABELS = {
   csv: "CSV",
   tsv: "TSV",
   json: "JSON",
-  jsonlines: "JSON Lines",
   xlsx: "Excel",
   xml: "XML",
   yaml: "YAML",

@@ -255,37 +255,33 @@ export default function App() {
           DataGenie
         </button>
 
-        <div className="flex items-center gap-3">
-          {/* AI provider badge — subtle, clickable to open settings */}
-          <button
-            onClick={() => setShowSettings(true)}
-            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
-            title="Change AI provider"
-          >
-            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isDemo ? "bg-amber-400" : "bg-emerald-400"}`} />
-            <span className="font-medium">{providerLabel}</span>
-            {modelLabel && (
-              <span className="text-gray-300">·</span>
-            )}
-            {modelLabel && (
-              <span className="truncate max-w-[140px]">{modelLabel}</span>
-            )}
-          </button>
-
-          <button
-            onClick={() => setShowSettings(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 border border-gray-200 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
-            title="LLM Provider Settings"
-          >
-            <span>⚙️</span>
-            <span>Settings</span>
-          </button>
-        </div>
       </header>
 
       <div className="flex flex-1">
-        <aside className="w-60 bg-gray-100 border-r border-gray-200 p-4">
-          <StageIndicator />
+        <aside className="w-60 bg-gray-100 border-r border-gray-200 flex flex-col">
+          <div className="p-4 flex-1">
+            <StageIndicator />
+          </div>
+
+          {/* Settings pinned to sidebar bottom */}
+          <div className="border-t border-gray-200 p-3">
+            <button
+              onClick={() => setShowSettings(true)}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-gray-200 transition-colors"
+              title="Open Settings"
+            >
+              <span className="text-lg">⚙️</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-gray-700">Settings</div>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isDemo ? "bg-amber-400" : "bg-emerald-400"}`} />
+                  <span className="text-xs text-gray-500 truncate">
+                    {providerLabel}{modelLabel ? ` · ${modelLabel}` : ""}
+                  </span>
+                </div>
+              </div>
+            </button>
+          </div>
         </aside>
 
         <main className="flex-1 p-6 overflow-y-auto">
