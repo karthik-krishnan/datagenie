@@ -531,7 +531,6 @@ def generate_data(
     compliance_rules: Dict[str, Any],
     relationships: List[Dict[str, Any]],
     volume: int = 100,
-    llm_settings: Optional[Dict[str, Any]] = None,
     preview: bool = False,
 ) -> Dict[str, List[Dict[str, Any]]]:
 

@@ -1,12 +1,9 @@
-import json
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends
 from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from database import get_db
-from models import LLMSettings as LLMSettingsModel
 from services.data_generator import generate_data
 from services.output_formatter import format_output
 
@@ -21,42 +18,18 @@ class GenerateRequest(BaseModel):
     volume: int = 100
     formats: List[str] = ["csv"]
     output_options: Dict[str, Any] = {}
-    # LLM config from browser localStorage — takes priority over DB
+    # Kept for backwards-compatibility with older frontend payloads; not used.
     llm_config: Optional[Dict[str, Any]] = None
-
-
-async def _get_llm_settings(db: AsyncSession, override: dict = None) -> dict:
-    """Return LLM settings dict. Uses the frontend-supplied override first (localStorage key),
-    falls back to DB for self-hosted deployments, then falls back to demo."""
-    if override and override.get("provider") and override["provider"] != "demo":
-        return override
-
-    result = await db.execute(select(LLMSettingsModel).order_by(LLMSettingsModel.id.desc()).limit(1))
-    row = result.scalar_one_or_none()
-    if not row:
-        return {"provider": "demo", "api_key": "", "model": "", "extra_config": {}}
-    try:
-        extra = json.loads(row.extra_config or "{}")
-    except Exception:
-        extra = {}
-    return {
-        "provider": row.provider,
-        "api_key": row.api_key or "",
-        "model": row.model or "",
-        "extra_config": extra,
-    }
 
 
 @router.post("/preview")
 async def preview(req: GenerateRequest, db: AsyncSession = Depends(get_db)):
-    settings = await _get_llm_settings(db, req.llm_config)
     data = generate_data(
         schema=req.schema,
         characteristics=req.characteristics,
         compliance_rules=req.compliance_rules,
         relationships=req.relationships,
         volume=5,
-        llm_settings=settings,
         preview=True,
     )
     return {"preview": data}
@@ -64,14 +37,12 @@ async def preview(req: GenerateRequest, db: AsyncSession = Depends(get_db)):
 
 @router.post("/")
 async def generate_full(req: GenerateRequest, db: AsyncSession = Depends(get_db)):
-    settings = await _get_llm_settings(db, req.llm_config)
     data = generate_data(
         schema=req.schema,
         characteristics=req.characteristics,
         compliance_rules=req.compliance_rules,
         relationships=req.relationships,
         volume=req.volume,
-        llm_settings=settings,
         preview=False,
     )
 

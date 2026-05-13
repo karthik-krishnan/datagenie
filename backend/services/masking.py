@@ -246,8 +246,8 @@ def normalize_masking_rule(
     if not rule_text or not rule_text.strip():
         return None
 
-    # ── LLM path ──────────────────────────────────────────────────────────────
-    if llm_provider is not None:
+    # ── LLM path (skip for demo/local providers — keyword fallback is equivalent) ──
+    if llm_provider is not None and getattr(llm_provider, "sends_data_to_external_api", True):
         try:
             prompt = _NORM_PROMPT.format(rule=rule_text.strip())
             raw = llm_provider.generate(prompt, _NORM_SYSTEM)
