@@ -640,6 +640,12 @@ def detect_compliance_batch_llm(
     if not columns:
         return _empty
 
+    # Demo/local providers don't make external LLM calls — skip the batch loop
+    # entirely and let the caller fall back to catalog-based detect_compliance().
+    # No warning needed: built-in rules are the intended behaviour in this mode.
+    if not getattr(llm_provider, "sends_data_to_external_api", True):
+        return _empty
+
     domain_frameworks = domain_frameworks or set()
 
     # Whether this provider applies strict content filtering (e.g. Azure OpenAI).
