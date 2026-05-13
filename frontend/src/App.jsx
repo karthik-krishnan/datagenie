@@ -111,6 +111,9 @@ export default function App() {
   } = useAppStore();
 
   const [schemaTab, setSchemaTab] = useState(0);
+  // Snapshot of context + files used for the last successful inference.
+  // Re-infer is only enabled when something has changed since then.
+  const [lastInferredState, setLastInferredState] = useState(null);
 
   useEffect(() => {
     if (!sessionId) {
@@ -121,6 +124,20 @@ export default function App() {
   // Reset schema tab when schema changes (e.g. re-infer or new template)
   useEffect(() => {
     setSchemaTab(0);
+  }, [inferredSchema]);
+
+  // When a profile or template loads a schema externally, mark state as
+  // already-inferred so the Re-infer button starts disabled.
+  useEffect(() => {
+    if (inferredSchema) {
+      setLastInferredState({
+        contextText,
+        fileKey: uploadedFiles.map((f) => f.name).join("|"),
+      });
+    } else {
+      setLastInferredState(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inferredSchema]);
 
   // Wipe stale preview whenever the user navigates away from the Output stage
@@ -138,6 +155,11 @@ export default function App() {
   const piiAvailable = complianceEnabled && !!(inferredSchema?.pii_detected || inferredSchema?.sensitive_detected);
   const relAvailable = uploadedFiles.length > 1 || (inferredSchema?.tables?.length || 0) > 1 || /relationship/i.test(contextText || "");
   const multiEntity = (inferredSchema?.tables?.length || 0) > 1;
+
+  const currentFileKey = uploadedFiles.map((f) => f.name).join("|");
+  const hasChangedSinceInfer = !lastInferredState
+    || lastInferredState.contextText !== contextText
+    || lastInferredState.fileKey !== currentFileKey;
 
   const nextStage = (cur) => {
     if (cur === 2 && !piiAvailable) return relAvailable ? 4 : 5;
@@ -168,6 +190,11 @@ export default function App() {
       // Apply schema result — populates schema, characteristics, compliance, relationships
       // Stay on Stage 1 so the user can review and edit the inferred schema.
       applyInferResult(result, 1);
+      // Snapshot so Re-infer stays disabled until user edits something
+      setLastInferredState({
+        contextText,
+        fileKey: uploadedFiles.map((f) => f.name).join("|"),
+      });
     } catch (e) {
       setError(e.message);
     } finally {
@@ -342,7 +369,7 @@ export default function App() {
                 <div className="flex justify-end -mt-2">
                   <button
                     onClick={runInfer}
-                    disabled={isLoading}
+                    disabled={isLoading || !hasChangedSinceInfer}
                     className="flex items-center gap-1.5 px-5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
                   >
                     {isLoading ? <Spinner /> : <><span className="text-base leading-none">↻</span> Infer Schema</>}
