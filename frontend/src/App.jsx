@@ -314,17 +314,19 @@ export default function App() {
                 <p className="text-sm text-gray-500 mt-1">
                   Tell DataGenie about your data in any combination:
                 </p>
-                <ul className="mt-2 space-y-1">
-                  {[
-                    ["📎", "Upload a sample file", "CSV, Excel, JSON, XML, YAML — columns and types are auto-extracted"],
-                    ["✏️", "Describe in plain English", "e.g. '20 customers each with 1–3 orders and an email address'"],
-                    ["🔀", "Or both together", "File gives structure; text fills in volume, relationships, and intent"],
-                  ].map(([icon, label, detail]) => (
-                    <li key={label} className="flex items-start gap-2 text-sm text-gray-500">
-                      <span className="mt-0.5 shrink-0">{icon}</span>
-                      <span><span className="font-medium text-gray-700">{label}</span> — {detail}</span>
-                    </li>
-                  ))}
+                <ul className="mt-2 space-y-1 text-sm text-gray-500">
+                  <li className="flex items-start gap-2">
+                    <span className="mt-0.5 shrink-0">{"📎"}</span>
+                    <span><span className="font-medium text-gray-700">Upload a sample file</span> — CSV, Excel, JSON, XML, YAML — columns and types are auto-extracted</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-0.5 shrink-0">{"✏️"}</span>
+                    <span><span className="font-medium text-gray-700">Describe in plain English</span> — e.g. 20 customers each with 1-3 orders and an email address</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-0.5 shrink-0">{"🔀"}</span>
+                    <span><span className="font-medium text-gray-700">Or both together</span> — file gives structure; text fills in volume, relationships, and intent</span>
+                  </li>
                 </ul>
               </div>
               <UploadZone files={uploadedFiles} onFiles={setUploadedFiles} />
