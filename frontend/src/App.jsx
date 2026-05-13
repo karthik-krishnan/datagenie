@@ -317,7 +317,7 @@ export default function App() {
                 <ul className="mt-2 space-y-1">
                   {[
                     ["📎", "Upload a sample file", "CSV, Excel, JSON, XML, YAML — columns and types are auto-extracted"],
-                    ["✏️", "Describe in plain English", "e.g. "20 customers each with 1–3 orders and an email address""],
+                    ["✏️", "Describe in plain English", "e.g. '20 customers each with 1–3 orders and an email address'"],
                     ["🔀", "Or both together", "File gives structure; text fills in volume, relationships, and intent"],
                   ].map(([icon, label, detail]) => (
                     <li key={label} className="flex items-start gap-2 text-sm text-gray-500">
