@@ -212,8 +212,10 @@ async def infer(
         else:
             # Single-table schema
             columns = extracted.get("columns") or []
-            # Demo/regex fallback may return no columns — use sensible defaults
-            if not columns:
+            # In demo mode the LLM is unavailable so _regex_fallback runs inside
+            # extract_from_context. If it still returns no columns, use a hardcoded
+            # default set rather than treating an empty LLM result as needing a fallback.
+            if not columns and isinstance(llm_provider_obj, DemoProvider):
                 from services.schema_inferrer import _infer_schema_from_context
                 fallback = _infer_schema_from_context(context_text)
                 columns = [{"name": c["name"], "type": c.get("type", "string"), "enum_values": c.get("enum_values", [])} for c in fallback["tables"][0]["columns"]]
