@@ -135,114 +135,33 @@ async def infer(
     # --- Detect domain frameworks from the context text first ---
     domain_frameworks = detect_domain_frameworks(context_text)
 
-    # --- Schema inference from files ---
-    schema = infer_schema(parsed_files, context_text)
-
-    # --- Compliance detection on all columns (multi-framework aware) ---
     sensitive_detected = False
     all_frameworks_detected: set = set()
 
-    # Gather all columns for one-shot LLM classification
-    all_cols_for_llm = [
-        {"name": col["name"], "sample_values": col.get("sample_values", [])}
-        for table in schema["tables"]
-        for col in table["columns"]
-    ]
+    # -------------------------------------------------------------------------
+    # TWO PATHS: context-only vs file-based
+    # -------------------------------------------------------------------------
 
-    # LLM batch classification with validation + retry (skipped for DemoProvider)
-    llm_batch = detect_compliance_batch_llm(
-        all_cols_for_llm, llm_provider_obj, context_text, domain_frameworks
-    )
-    llm_compliance = llm_batch["results"]
-    if llm_batch["warning"] and not llm_warning:
-        llm_warning = llm_batch["warning"]
+    if not parsed_files:
+        # --- CONTEXT-ONLY: LLM does everything — no regex, no infer_schema ---
+        extracted = extract_from_context(context_text, llm_provider_obj)
 
-    for table in schema["tables"]:
-        for col in table["columns"]:
-            sample = col.get("sample_values", [])
-            # Prefer LLM result; fall back to deterministic catalog / value-pattern matching
-            compliance = (
-                llm_compliance.get(col["name"])
-                or detect_compliance(col["name"], sample, domain_frameworks)
-            )
-            col["pii"] = compliance
-            if compliance["is_sensitive"]:
-                sensitive_detected = True
-                all_frameworks_detected.update(compliance["frameworks"])
-
-    # --- Extract structured params from context text ---
-    combined_context = context_text.strip()
-    if parsed_files and combined_context:
-        file_col_summary = "; ".join(
-            f"{pf['table_name']}: {', '.join(c['name'] for c in pf['columns'])}"
-            for pf in parsed_files
-        )
-        combined_context = (
-            f"{combined_context}\n\n[Detected columns from uploaded files: {file_col_summary}]"
-        )
-
-    extracted = extract_from_context(combined_context or context_text, llm_provider_obj)
-
-    # --- Merge compliance rules extracted from text → update schema columns ---
-    for col_name, rule in extracted.get("compliance_rules", {}).items():
-        if rule.get("pii_type"):
-            sensitive_detected = True
-            for table in schema["tables"]:
-                for col in table["columns"]:
-                    if col["name"].lower() == col_name.lower():
-                        if not col["pii"]["is_sensitive"]:
-                            compliance = detect_compliance(col_name, [], domain_frameworks)
-                            col["pii"] = compliance
-                            all_frameworks_detected.update(compliance["frameworks"])
-
-    # --- Context-only mode: build schema from extracted columns ---
-    # Only apply this single-entity override when _infer_schema_from_context did NOT
-    # already produce a multi-table schema (i.e. schema has exactly one generic table).
-    _has_multi_table = (
-        not parsed_files
-        and extracted.get("tables")
-        and len(extracted["tables"]) > 1
-    )
-    _context_only_single = (
-        not parsed_files
-        and not _has_multi_table
-        and extracted.get("columns")
-        and len(schema.get("tables", [])) == 1
-        and schema["tables"][0].get("table_name") in ("dataset", extracted.get("entity_type", ""))
-    )
-
-    if _has_multi_table:
-        # Build a fresh multi-table schema from extracted["tables"] and extracted["relationships"]
-        schema = {"tables": [], "relationships": []}
-
-        for tbl in extracted["tables"]:
-            tbl_name = tbl.get("name", "records")
-            tbl_columns = tbl.get("columns", [])
-
-            # Run LLM batch compliance on this table's columns
-            tbl_col_dicts = [
-                {"name": c.get("name", ""), "sample_values": []}
-                for c in tbl_columns if c.get("name")
-            ]
-            llm_tbl_batch = detect_compliance_batch_llm(
-                tbl_col_dicts, llm_provider_obj, context_text, domain_frameworks
-            )
-            llm_compliance_tbl = llm_tbl_batch["results"]
-            if llm_tbl_batch["warning"] and not llm_warning:
-                llm_warning = llm_tbl_batch["warning"]
-
+        def _build_cols_with_compliance(columns, compliance_rules):
+            """Build enriched column list with LLM compliance detection."""
+            nonlocal sensitive_detected, all_frameworks_detected
+            col_dicts = [{"name": c.get("name", ""), "sample_values": []} for c in columns if c.get("name")]
+            batch = detect_compliance_batch_llm(col_dicts, llm_provider_obj, context_text, domain_frameworks)
+            if batch["warning"] and not llm_warning:
+                pass  # warning surfaced below per-table
+            llm_comp = batch["results"]
             cols = []
-            for c in tbl_columns:
+            for c in columns:
                 name = c.get("name", "")
                 if not name:
                     continue
-                # LLM result preferred; catalog/pattern fallback
-                compliance = (
-                    llm_compliance_tbl.get(name)
-                    or detect_compliance(name, [], domain_frameworks)
-                )
-                cr = extracted.get("compliance_rules", {}).get(name)
-                if cr and cr.get("pii_type") and not compliance["is_sensitive"]:
+                compliance = llm_comp.get(name) or detect_compliance(name, [], domain_frameworks)
+                cr = compliance_rules.get(name, {})
+                if cr.get("pii_type") and not compliance["is_sensitive"]:
                     compliance = {
                         "is_sensitive": True,
                         "frameworks": [cr["pii_type"]],
@@ -262,92 +181,104 @@ async def infer(
                     "enum_values": c.get("enum_values", []),
                     "pii": compliance,
                 })
+            return cols, batch["warning"]
 
-            # Root table gets the extracted volume; child tables default to 0
-            is_root = tbl.get("is_root", False)
-            row_count = extracted.get("volume") or 0 if is_root else 0
+        compliance_rules = extracted.get("compliance_rules", {})
 
-            schema["tables"].append({
-                "table_name": tbl_name,
-                "filename": None,
-                "columns": cols,
-                "row_count": row_count,
-                "is_root": is_root,
-            })
+        if extracted.get("tables") and len(extracted["tables"]) > 1:
+            # Multi-table schema
+            schema = {"tables": [], "relationships": []}
+            for tbl in extracted["tables"]:
+                cols, warn = _build_cols_with_compliance(tbl.get("columns", []), compliance_rules)
+                if warn and not llm_warning:
+                    llm_warning = warn
+                is_root = tbl.get("is_root", False)
+                schema["tables"].append({
+                    "table_name": tbl.get("name", "records"),
+                    "filename": None,
+                    "columns": cols,
+                    "row_count": (extracted.get("volume") or 0) if is_root else 0,
+                    "is_root": is_root,
+                })
+            for rel in extracted.get("relationships", []):
+                per_min = rel.get("per_parent_min")
+                per_max = rel.get("per_parent_max")
+                schema["relationships"].append({
+                    "source_table": rel.get("source_table", ""),
+                    "target_table": rel.get("target_table", ""),
+                    "cardinality": "one_to_many",
+                    "per_parent": {"min": per_min, "max": per_max, "shape": "Uniform"} if (per_min is not None or per_max is not None) else None,
+                })
+        else:
+            # Single-table schema
+            columns = extracted.get("columns") or []
+            # Demo/regex fallback may return no columns — use sensible defaults
+            if not columns:
+                from services.schema_inferrer import _infer_schema_from_context
+                fallback = _infer_schema_from_context(context_text)
+                columns = [{"name": c["name"], "type": c.get("type", "string"), "enum_values": c.get("enum_values", [])} for c in fallback["tables"][0]["columns"]]
+            cols, warn = _build_cols_with_compliance(columns, compliance_rules)
+            if warn and not llm_warning:
+                llm_warning = warn
+            schema = {
+                "tables": [{
+                    "table_name": extracted.get("entity_type", "records"),
+                    "filename": None,
+                    "columns": cols,
+                    "row_count": 0,
+                }],
+                "relationships": [],
+            }
 
-        # Build relationships with per_parent metadata for the frontend VolumeInput
-        for rel in extracted.get("relationships", []):
-            per_min = rel.get("per_parent_min")
-            per_max = rel.get("per_parent_max")
-            per_parent = None
-            if per_min is not None or per_max is not None:
-                per_parent = {
-                    "min": per_min,
-                    "max": per_max,
-                    "shape": "Uniform",
-                }
-            schema["relationships"].append({
-                "source_table": rel.get("source_table", ""),
-                "target_table": rel.get("target_table", ""),
-                "cardinality": "one_to_many",
-                "per_parent": per_parent,
-            })
+    else:
+        # --- FILE-BASED: infer schema from uploaded files, then run compliance ---
+        schema = infer_schema(parsed_files, context_text)
 
-    elif _context_only_single:
-        entity_type = extracted.get("entity_type", "records")
-
-        # Run LLM batch compliance on the extracted column list (with retry)
-        extracted_col_dicts = [
-            {"name": c.get("name", ""), "sample_values": []}
-            for c in extracted["columns"] if c.get("name")
+        all_cols_for_llm = [
+            {"name": col["name"], "sample_values": col.get("sample_values", [])}
+            for table in schema["tables"]
+            for col in table["columns"]
         ]
-        llm_ctx_batch = detect_compliance_batch_llm(
-            extracted_col_dicts, llm_provider_obj, context_text, domain_frameworks
+        llm_batch = detect_compliance_batch_llm(
+            all_cols_for_llm, llm_provider_obj, context_text, domain_frameworks
         )
-        llm_compliance_ctx = llm_ctx_batch["results"]
-        if llm_ctx_batch["warning"] and not llm_warning:
-            llm_warning = llm_ctx_batch["warning"]
+        llm_compliance = llm_batch["results"]
+        if llm_batch["warning"] and not llm_warning:
+            llm_warning = llm_batch["warning"]
 
-        cols = []
-        for c in extracted["columns"]:
-            name = c.get("name", "")
-            if not name:
-                continue
-            # LLM result preferred; catalog/pattern fallback
-            compliance = (
-                llm_compliance_ctx.get(name)
-                or detect_compliance(name, [], domain_frameworks)
+        for table in schema["tables"]:
+            for col in table["columns"]:
+                compliance = (
+                    llm_compliance.get(col["name"])
+                    or detect_compliance(col["name"], col.get("sample_values", []), domain_frameworks)
+                )
+                col["pii"] = compliance
+                if compliance["is_sensitive"]:
+                    sensitive_detected = True
+                    all_frameworks_detected.update(compliance["frameworks"])
+
+        # Augment with any extra context the user typed alongside the files
+        combined_context = context_text.strip()
+        if combined_context:
+            file_col_summary = "; ".join(
+                f"{pf['table_name']}: {', '.join(c['name'] for c in pf['columns'])}"
+                for pf in parsed_files
             )
-            cr = extracted.get("compliance_rules", {}).get(name)
-            if cr and cr.get("pii_type") and not compliance["is_sensitive"]:
-                compliance = {
-                    "is_sensitive": True,
-                    "frameworks": [cr["pii_type"]],
-                    "field_type": name,
-                    "default_action": "fake_realistic",
-                    "recommendations": {cr["pii_type"]: FRAMEWORK_RECOMMENDATIONS.get(cr["pii_type"], "")},
-                    "confidence": 0.9,
-                }
-            if compliance["is_sensitive"]:
+            combined_context = (
+                f"{combined_context}\n\n[Detected columns from uploaded files: {file_col_summary}]"
+            )
+        extracted = extract_from_context(combined_context or context_text, llm_provider_obj)
+
+        # Merge any compliance rules the LLM identified from the context text
+        for col_name, rule in extracted.get("compliance_rules", {}).items():
+            if rule.get("pii_type"):
                 sensitive_detected = True
-                all_frameworks_detected.update(compliance["frameworks"])
-            cols.append({
-                "name": name,
-                "type": c.get("type", "string"),
-                "sample_values": [],
-                "pattern": name,
-                "enum_values": c.get("enum_values", []),
-                "pii": compliance,
-            })
-        schema = {
-            "tables": [{
-                "table_name": entity_type,
-                "filename": None,
-                "columns": cols,
-                "row_count": 0,
-            }],
-            "relationships": [],
-        }
+                for table in schema["tables"]:
+                    for col in table["columns"]:
+                        if col["name"].lower() == col_name.lower() and not col["pii"]["is_sensitive"]:
+                            compliance = detect_compliance(col_name, [], domain_frameworks)
+                            col["pii"] = compliance
+                            all_frameworks_detected.update(compliance["frameworks"])
 
     schema["pii_detected"] = sensitive_detected
     schema["sensitive_detected"] = sensitive_detected

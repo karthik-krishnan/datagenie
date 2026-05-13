@@ -300,11 +300,21 @@ def _infer_schema_from_context(context_text: str) -> Dict[str, Any]:
         }
 
     # ── Single-table fallback ────────────────────────────────────────────────
-    # Try to find an explicit table name
+    # Try to find an explicit table name — exclude common verbs/stop-words that
+    # appear after "entity" in natural sentences (e.g. "customer entity has multiple…"
+    # must NOT produce table_name="has").
+    _TABLE_NAME_STOP = {
+        "has", "is", "are", "was", "were", "have", "had", "be", "been",
+        "do", "does", "did", "will", "would", "should", "could", "can",
+        "the", "a", "an", "of", "for", "with", "to", "and", "or", "that",
+        "which", "multiple", "some", "many", "several", "each", "any",
+    }
     table_match = re.search(
         r"(?:table|entity|sheet|dataset)\s+(?:called|named|:)?\s*['\"]?(\w+)['\"]?",
         text, re.I,
     )
+    if table_match and table_match.group(1).lower() in _TABLE_NAME_STOP:
+        table_match = None
     table_name = table_match.group(1) if table_match else "dataset"
 
     # Extract field names from "columns: ..." or "fields: ..." patterns
