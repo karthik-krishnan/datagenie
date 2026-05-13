@@ -89,7 +89,7 @@ export default function ProfilePicker() {
 
   const isDemo = !llmSettings?.provider || llmSettings.provider === "demo";
   const providerLabel = {
-    anthropic: "Anthropic", openai: "OpenAI", azure: "Azure OpenAI",
+    anthropic: "Anthropic", openai: "OpenAI", azure: "Azure OpenAI", azure_foundry: "Azure AI Foundry",
     google: "Google", ollama: "Ollama", demo: "Demo",
   }[llmSettings?.provider] ?? "Demo";
   const modelLabel = !isDemo && llmSettings?.model ? llmSettings.model : null;

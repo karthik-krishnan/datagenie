@@ -241,7 +241,8 @@ export default function App() {
   const providerLabel = {
     anthropic: "Anthropic",
     openai:    "OpenAI",
-    azure:     "Azure OpenAI",
+    azure:         "Azure OpenAI",
+    azure_foundry: "Azure AI Foundry",
     google:    "Google",
     ollama:    "Ollama",
     demo:      "Demo",

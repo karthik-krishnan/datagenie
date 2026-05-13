@@ -194,6 +194,44 @@ class AzureOpenAIProvider(LLMProvider):
             return json.dumps({"error": detail})
 
 
+class AzureFoundryProvider(LLMProvider):
+    """Azure AI Foundry (Azure AI Inference SDK) — supports GPT, Llama, Mistral, Phi, etc."""
+
+    def __init__(self, api_key: str, endpoint: str, model: str = ""):
+        self.api_key = api_key
+        # Normalise endpoint — strip trailing slash
+        self.endpoint = (endpoint or "").strip().rstrip("/")
+        self.model = model or ""  # optional: some endpoints serve a single model
+
+    def generate(self, prompt: str, system_prompt: str = "") -> str:
+        if not self.endpoint:
+            return json.dumps({"error": "Azure AI Foundry endpoint is not configured. "
+                                        "Set 'endpoint' in Settings → Extra Config."})
+        try:
+            from azure.ai.inference import ChatCompletionsClient
+            from azure.ai.inference.models import SystemMessage, UserMessage
+            from azure.core.credentials import AzureKeyCredential
+
+            client = ChatCompletionsClient(
+                endpoint=self.endpoint,
+                credential=AzureKeyCredential(self.api_key),
+            )
+            kwargs = dict(
+                messages=[
+                    SystemMessage(content=system_prompt or "Generate realistic JSON test data."),
+                    UserMessage(content=prompt),
+                ],
+            )
+            if self.model:
+                kwargs["model"] = self.model
+            resp = client.complete(**kwargs)
+            return resp.choices[0].message.content or ""
+        except Exception as e:
+            cause = getattr(e, "__cause__", None) or getattr(e, "__context__", None)
+            detail = str(cause) if cause else str(e)
+            return json.dumps({"error": detail})
+
+
 class GoogleProvider(LLMProvider):
     def __init__(self, api_key: str, model: str = "gemini-1.5-pro"):
         self.api_key = api_key
@@ -246,6 +284,12 @@ def get_provider(settings: Dict[str, Any]) -> LLMProvider:
             api_key=api_key,
             endpoint=extra.get("endpoint", ""),
             deployment=extra.get("deployment", model),
+        )
+    if provider == "azure_foundry" and api_key:
+        return AzureFoundryProvider(
+            api_key=api_key,
+            endpoint=extra.get("endpoint", ""),
+            model=model,
         )
     if provider == "google" and api_key:
         return GoogleProvider(api_key, model)

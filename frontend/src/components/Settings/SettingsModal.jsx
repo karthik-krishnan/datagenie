@@ -10,6 +10,7 @@ const PROVIDERS = [
   { id: "anthropic", title: "Anthropic", subtitle: "Claude Sonnet/Opus", models: ["claude-sonnet-4-20250514", "claude-opus-4-20250514", "claude-3-5-sonnet-20241022"] },
   { id: "openai", title: "OpenAI", subtitle: "GPT-4o / GPT-4", models: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"] },
   { id: "azure", title: "Azure OpenAI", subtitle: "Endpoint + key", models: [] },
+  { id: "azure_foundry", title: "Azure AI Foundry", subtitle: "AI Foundry endpoint + key", models: [] },
   { id: "google", title: "Google", subtitle: "Gemini 1.5 Pro/Flash", models: ["gemini-1.5-pro", "gemini-1.5-flash"] },
   { id: "ollama", title: "Ollama", subtitle: "Local, no key", models: ["llama3", "mistral", "codellama"] },
   { id: "demo", title: "Demo", subtitle: "Sample, no key", models: [] },
@@ -188,6 +189,30 @@ export default function SettingsModal() {
                     value={extra.deployment || ""}
                     onChange={(e) => setExtra({ ...extra, deployment: e.target.value })}
                     placeholder="gpt-4o-deployment"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-indigo-500"
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Azure AI Foundry extras */}
+            {provider === "azure_foundry" && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Foundry Endpoint</label>
+                  <input
+                    value={extra.endpoint || ""}
+                    onChange={(e) => setExtra({ ...extra, endpoint: e.target.value })}
+                    placeholder="https://your-resource.services.ai.azure.com/models"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Model Name <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <input
+                    value={model}
+                    onChange={(e) => setModel(e.target.value)}
+                    placeholder="e.g. gpt-4o, Llama-3.3-70B-Instruct"
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-indigo-500"
                   />
                 </div>
