@@ -60,7 +60,7 @@ async def test_connection(payload: SettingsPayload):
         result = provider.generate("Reply with the single word: ok", "You are a test.")
         if result and "error" not in result.lower()[:30]:
             return {"ok": True, "message": "Connected successfully. Model responded."}
-        return {"ok": False, "message": f"Provider returned: {result[:120]}"}
+        return {"ok": False, "message": f"Provider returned: {result[:500]}"}
     except Exception as e:
         return {"ok": False, "message": str(e)[:200]}
 
