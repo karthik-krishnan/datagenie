@@ -564,7 +564,7 @@ export default function App() {
 
               <div className="flex justify-between">
                 <button onClick={() => setStage(prevStage(2))} className="px-5 py-2 rounded-lg border border-gray-300 hover:bg-gray-50">Back</button>
-                <button onClick={() => setStage(nextStage(2))} className="px-5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">Continue</button>
+                <button onClick={() => setStage(nextStage(2))} className="px-5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">Continue →</button>
               </div>
             </div>
           )}
@@ -604,7 +604,7 @@ export default function App() {
               />
               <div className="flex justify-between">
                 <button onClick={() => setStage(prevStage(4))} className="px-5 py-2 rounded-lg border border-gray-300 hover:bg-gray-50">Back</button>
-                <button onClick={() => setStage(nextStage(4))} className="px-5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">Continue</button>
+                <button onClick={() => setStage(nextStage(4))} className="px-5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">Continue →</button>
               </div>
             </div>
           )}
