@@ -1,5 +1,7 @@
 # 🪄 DataGenie — AI-Powered Synthetic Test Data Generator
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 DataGenie is a full-stack application that generates realistic, compliant synthetic test data from natural language descriptions or uploaded sample files. It infers schema, detects sensitive fields, enforces masking rules, and outputs data in multiple formats — all without your real data ever leaving your environment.
 
 ---
