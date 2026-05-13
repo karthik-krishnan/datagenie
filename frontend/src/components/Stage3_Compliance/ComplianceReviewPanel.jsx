@@ -273,12 +273,12 @@ export default function ComplianceReviewPanel({
 
         {/* Navigation */}
         <div className="flex justify-between pt-2">
-          <button onClick={onBack} className="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50">
+          <button onClick={onBack} className="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium">
             Back
           </button>
           <button
             onClick={() => noneSelected ? onContinue?.() : setStep("fields")}
-            className="px-5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
+            className="px-5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-medium"
           >
             {noneSelected ? "Continue without restrictions" : `Review ${selectedFrameworks.length} framework${selectedFrameworks.length !== 1 ? "s" : ""} →`}
           </button>
@@ -441,10 +441,10 @@ export default function ComplianceReviewPanel({
 
       {/* Navigation */}
       <div className="flex justify-between pt-2">
-        <button onClick={() => setStep("select")} className="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50">
+        <button onClick={() => setStep("select")} className="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium">
           Back
         </button>
-        <button onClick={onContinue} className="px-5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
+        <button onClick={onContinue} className="px-5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-medium">
           Continue →
         </button>
       </div>
