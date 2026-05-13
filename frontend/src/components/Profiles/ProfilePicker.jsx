@@ -206,24 +206,31 @@ export default function ProfilePicker() {
         <main className="flex-1 overflow-y-auto bg-gray-50">
       <div className="px-8 py-6 max-w-6xl mx-auto w-full">
 
-        {/* ── Page title + Start Fresh ── */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900">Welcome to DataGenie</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Choose a template or load a saved profile to get started.</p>
-          </div>
-          <button
-            onClick={() => setShowProfilePicker(false)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-medium text-sm"
-          >
-            <span>+</span> Start Fresh
-          </button>
+        {/* ── Page title ── */}
+        <div className="mb-6">
+          <h1 className="text-xl font-semibold text-gray-900">Welcome to DataGenie</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Start fresh, pick a template, or reload a saved profile.</p>
         </div>
+
+        {/* ── Start from scratch (hero option) ── */}
+        <button
+          onClick={() => setShowProfilePicker(false)}
+          className="w-full mb-8 flex items-center gap-5 px-6 py-5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-left transition-colors group shadow-sm"
+        >
+          <div className="text-3xl shrink-0">✨</div>
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold text-base">Start from scratch</div>
+            <div className="text-sm text-indigo-200 mt-0.5">
+              Describe your data in plain English, upload a sample file, or both — DataGenie infers the schema for you.
+            </div>
+          </div>
+          <div className="text-indigo-300 group-hover:translate-x-0.5 transition-transform text-xl shrink-0">→</div>
+        </button>
 
         {/* ── Demo starter templates ── */}
         <div className="mb-8">
           <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-            Start with a template
+            Or start with a template
           </h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {DEMO_STARTERS.map((s) => (

@@ -321,6 +321,19 @@ export default function App() {
               )}
               <ContextInput value={contextText} onChange={setContextText} />
 
+              {/* Re-infer shortcut — visible right after editing context, no scrolling needed */}
+              {inferredSchema && (
+                <div className="flex justify-end -mt-2">
+                  <button
+                    onClick={runInfer}
+                    disabled={isLoading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-indigo-300 text-indigo-600 hover:bg-indigo-50 disabled:opacity-50 transition-colors"
+                  >
+                    {isLoading ? <Spinner /> : <><span className="text-base leading-none">↻</span> Re-infer</>}
+                  </button>
+                </div>
+              )}
+
               {inferredSchema && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -412,16 +425,18 @@ export default function App() {
               )}
 
               <div className="flex justify-end gap-2">
-                <button
-                  onClick={runInfer}
-                  disabled={isLoading || (uploadedFiles.length === 0 && !contextText.trim())}
-                  className="px-5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {isLoading ? <Spinner /> : inferredSchema ? "Re-infer" : "Infer Schema"}
-                </button>
+                {!inferredSchema && (
+                  <button
+                    onClick={runInfer}
+                    disabled={isLoading || (uploadedFiles.length === 0 && !contextText.trim())}
+                    className="px-5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    {isLoading ? <Spinner /> : "Infer Schema"}
+                  </button>
+                )}
                 {inferredSchema && (
                   <button onClick={() => setStage(nextStage(1))} className="px-5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
-                    Continue
+                    Continue →
                   </button>
                 )}
               </div>
