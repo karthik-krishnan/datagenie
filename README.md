@@ -6,13 +6,13 @@ DataGenie is a full-stack application that generates realistic, compliant synthe
 
 ## 📋 Generation Workflow
 
-| Stage | What happens |
-|-------|-------------|
-| **1 · Upload & Context** | Upload sample files and/or describe your data. DataGenie infers tables, columns, types, volume, and sensitivity. Edit schema inline using dog-ear tabs. |
-| **2 · Characteristics** | Set total volume, variable child counts per parent (min/max/shape), numeric ranges, and categorical value distributions. |
-| **3 · Compliance** | Auto-detected sensitive fields across 8 frameworks. Review and adjust per-field masking actions; write custom plain-English rules. *(Skipped if compliance is disabled in Settings or no sensitive fields detected.)* |
-| **4 · Relationships** | Confirm or edit parent→child FK relationships (1:N, 1:1, N:N). *(Skipped for single-table schemas.)* |
-| **5 · Output & Preview** | Pick a format, preview sample rows in tabbed view, then download. Multi-table schemas bundled as ZIP. |
+| Stage | Description |
+|:------|:------------|
+| **Stage 1 — Upload & Context** | Upload sample files and/or describe your data in plain English. DataGenie infers tables, columns, types, volume, and sensitivity. Edit schema inline using dog-ear tabs. |
+| **Stage 2 — Characteristics** | Set total volume, variable child counts per parent (min/max/shape), numeric ranges, and categorical value distributions. |
+| **Stage 3 — Compliance** | Auto-detected sensitive fields across 8 frameworks. Review and adjust per-field masking actions; write custom plain-English rules. *(Skipped if compliance is disabled or no sensitive fields detected.)* |
+| **Stage 4 — Relationships** | Confirm or edit parent→child FK relationships (1:N, 1:1, N:N). *(Skipped for single-table schemas.)* |
+| **Stage 5 — Output & Preview** | Pick a format, preview sample rows in a tabbed view, then download. Multi-table schemas are bundled as a ZIP. |
 
 ---
 
@@ -119,7 +119,32 @@ Open **Settings (⚙️)** from the sidebar bottom-left. Config is stored in `lo
 
 ---
 
-## 🏗 Architecture
+## 📸 Screenshots
+
+<details>
+<summary>Click to expand screenshots</summary>
+<br/>
+
+<table>
+  <tr>
+    <td align="center"><a href="docs/screenshots/01-starter-templates.png"><img src="docs/screenshots/01-starter-templates.png" width="170"/></a><br/><sub>Starter templates</sub></td>
+    <td align="center"><a href="docs/screenshots/02-schema-infer.png"><img src="docs/screenshots/02-schema-infer.png" width="170"/></a><br/><sub>Schema editor</sub></td>
+    <td align="center"><a href="docs/screenshots/03-characteristics.png"><img src="docs/screenshots/03-characteristics.png" width="170"/></a><br/><sub>Characteristics</sub></td>
+    <td align="center"><a href="docs/screenshots/04-distributions.png"><img src="docs/screenshots/04-distributions.png" width="170"/></a><br/><sub>Value distributions</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="docs/screenshots/05-compliance.png"><img src="docs/screenshots/05-compliance.png" width="170"/></a><br/><sub>Compliance review</sub></td>
+    <td align="center"><a href="docs/screenshots/06-relationships.png"><img src="docs/screenshots/06-relationships.png" width="170"/></a><br/><sub>Relationships</sub></td>
+    <td align="center"><a href="docs/screenshots/07-preview.png"><img src="docs/screenshots/07-preview.png" width="170"/></a><br/><sub>Output preview</sub></td>
+    <td align="center"><a href="docs/screenshots/08-settings.png"><img src="docs/screenshots/08-settings.png" width="170"/></a><br/><sub>Settings</sub></td>
+  </tr>
+</table>
+
+</details>
+
+---
+
+## 🏗 Project Structure
 
 ```
 datagenie/
@@ -213,31 +238,6 @@ cd frontend && npm install && npm run dev   # → http://localhost:3001
 ```
 
 The Vite dev server proxies `/api/*` to `http://localhost:8000` automatically.
-
----
-
-## 📸 Screenshots
-
-<details>
-<summary>Click to expand screenshots</summary>
-<br/>
-
-<table>
-  <tr>
-    <td align="center"><a href="docs/screenshots/01-starter-templates.png"><img src="docs/screenshots/01-starter-templates.png" width="170"/></a><br/><sub>Starter templates</sub></td>
-    <td align="center"><a href="docs/screenshots/02-schema-infer.png"><img src="docs/screenshots/02-schema-infer.png" width="170"/></a><br/><sub>Schema editor</sub></td>
-    <td align="center"><a href="docs/screenshots/03-characteristics.png"><img src="docs/screenshots/03-characteristics.png" width="170"/></a><br/><sub>Characteristics</sub></td>
-    <td align="center"><a href="docs/screenshots/04-distributions.png"><img src="docs/screenshots/04-distributions.png" width="170"/></a><br/><sub>Value distributions</sub></td>
-  </tr>
-  <tr>
-    <td align="center"><a href="docs/screenshots/05-compliance.png"><img src="docs/screenshots/05-compliance.png" width="170"/></a><br/><sub>Compliance review</sub></td>
-    <td align="center"><a href="docs/screenshots/06-relationships.png"><img src="docs/screenshots/06-relationships.png" width="170"/></a><br/><sub>Relationships</sub></td>
-    <td align="center"><a href="docs/screenshots/07-preview.png"><img src="docs/screenshots/07-preview.png" width="170"/></a><br/><sub>Output preview</sub></td>
-    <td align="center"><a href="docs/screenshots/08-settings.png"><img src="docs/screenshots/08-settings.png" width="170"/></a><br/><sub>Settings</sub></td>
-  </tr>
-</table>
-
-</details>
 
 ---
 
