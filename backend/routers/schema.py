@@ -133,7 +133,7 @@ async def infer(
                            "Open Settings and add 'deployment' to Extra Config.")
 
     # --- Detect domain frameworks from the context text first ---
-    domain_frameworks = detect_domain_frameworks(context_text)
+    domain_frameworks = detect_domain_frameworks(context_text, llm_provider_obj)
 
     sensitive_detected = False
     all_frameworks_detected: set = set()
@@ -212,10 +212,9 @@ async def infer(
         else:
             # Single-table schema
             columns = extracted.get("columns") or []
-            # In demo mode the LLM is unavailable so _regex_fallback runs inside
-            # extract_from_context. If it still returns no columns, use a hardcoded
-            # default set rather than treating an empty LLM result as needing a fallback.
-            if not columns and llm_provider_obj.is_demo:
+            # If extraction returned no columns (e.g. very short or ambiguous context),
+            # fall back to a hardcoded default set derived from the context text.
+            if not columns:
                 from services.schema_inferrer import _infer_schema_from_context
                 fallback = _infer_schema_from_context(context_text)
                 columns = [{"name": c["name"], "type": c.get("type", "string"), "enum_values": c.get("enum_values", [])} for c in fallback["tables"][0]["columns"]]

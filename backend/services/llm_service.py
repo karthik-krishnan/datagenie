@@ -10,10 +10,6 @@ class LLMProvider:
     # Provider capability flags
     # ---------------------------------------------------------------------------
     @property
-    def is_demo(self) -> bool:
-        return False
-
-    @property
     def sends_data_to_external_api(self) -> bool:
         """True for any provider that makes external API calls with user data."""
         return True
@@ -31,16 +27,55 @@ class LLMProvider:
 
 
 class DemoProvider(LLMProvider):
-    def generate(self, prompt: str, system_prompt: str = "") -> str:
-        return json.dumps({"demo": True, "value": "sample"})
-
-    @property
-    def is_demo(self) -> bool:
-        return True
-
     @property
     def sends_data_to_external_api(self) -> bool:
         return False
+
+    def generate(self, prompt: str, system_prompt: str = "") -> str:
+        sp = (system_prompt or "").lower()
+
+        # Route by system prompt signal
+        if "schema analyst" in sp or "generation requirements" in sp:
+            return self._handle_schema_extraction(prompt)
+        if "masking" in sp or "maskingop" in sp:
+            return self._handle_masking(prompt)
+        if "regulatory framework" in sp or "applicable framework" in sp:
+            return self._handle_domain_frameworks(prompt)
+        if "compliance" in sp or "sensitive field" in sp or "pii" in sp:
+            return self._handle_compliance()
+        # Unknown prompt type — return empty object
+        return json.dumps({})
+
+    def _handle_schema_extraction(self, prompt: str) -> str:
+        """Use _regex_fallback from context_extractor for demo schema extraction."""
+        from services.context_extractor import _regex_fallback
+        import re
+        m = re.search(r'"([^"]{10,})"', prompt, re.DOTALL)
+        context = m.group(1) if m else prompt
+        result = _regex_fallback(context)
+        return json.dumps(result)
+
+    def _handle_masking(self, prompt: str) -> str:
+        """Use _keyword_normalize from masking service."""
+        from services.masking import _keyword_normalize
+        import re
+        m = re.search(r'"([^"]{3,})"', prompt)
+        rule = m.group(1) if m else prompt
+        op = _keyword_normalize(rule)
+        return json.dumps({"masking_op": op})
+
+    def _handle_domain_frameworks(self, prompt: str) -> str:
+        """Use keyword matching from compliance_detector."""
+        from services.compliance_detector import _keyword_domain_frameworks
+        import re
+        m = re.search(r'"([^"]{5,})"', prompt, re.DOTALL)
+        context = m.group(1) if m else prompt
+        frameworks = list(_keyword_domain_frameworks(context))
+        return json.dumps({"frameworks": frameworks})
+
+    def _handle_compliance(self) -> str:
+        """Return empty results — catalog-based detect_compliance handles each column."""
+        return json.dumps({"results": {}})
 
 
 class AnthropicProvider(LLMProvider):

@@ -322,38 +322,37 @@ def extract_from_context(context_text: str, llm_provider=None) -> Dict[str, Any]
     # Try LLM first
     if llm_provider is not None:
         try:
-            if not llm_provider.is_demo:
-                # Truncate context to avoid hitting provider token limits.
-                # Context extraction only needs the user's description, not file rows.
-                truncated = context_text.strip()[:4000]
-                prompt = EXTRACTION_PROMPT.format(context=truncated)
-                raw = llm_provider.generate(prompt, EXTRACTION_SYSTEM)
-                # Strip markdown code fences if present
-                raw = raw.strip()
-                if raw.startswith("```"):
-                    raw = re.sub(r"^```(?:json)?\s*", "", raw)
-                    raw = re.sub(r"\s*```$", "", raw)
-                parsed = json.loads(raw)
-                # Discard if the LLM returned an error object (e.g. from Azure config issues)
-                if "error" in parsed and len(parsed) == 1:
-                    raise ValueError(f"LLM returned error: {parsed['error']}")
-                # Ensure required keys exist
-                parsed.setdefault("volume", None)
-                parsed.setdefault("columns", [])
-                parsed.setdefault("tables", [])
-                parsed.setdefault("relationships", [])
-                parsed.setdefault("distributions", {})
-                parsed.setdefault("compliance_rules", {})
-                parsed.setdefault("temporal", {})
-                # Normalise entity_type — some LLMs return the string "null" or None
-                raw_et = parsed.get("entity_type")
-                if not raw_et or str(raw_et).strip().lower() in ("null", "none", ""):
-                    parsed["entity_type"] = "records"
-                else:
-                    parsed["entity_type"] = str(raw_et).strip()
-                # Normalise any custom masking rules → structured masking_op
-                _normalise_compliance_rules(parsed["compliance_rules"], llm_provider)
-                return parsed
+            # Truncate context to avoid hitting provider token limits.
+            # Context extraction only needs the user's description, not file rows.
+            truncated = context_text.strip()[:4000]
+            prompt = EXTRACTION_PROMPT.format(context=truncated)
+            raw = llm_provider.generate(prompt, EXTRACTION_SYSTEM)
+            # Strip markdown code fences if present
+            raw = raw.strip()
+            if raw.startswith("```"):
+                raw = re.sub(r"^```(?:json)?\s*", "", raw)
+                raw = re.sub(r"\s*```$", "", raw)
+            parsed = json.loads(raw)
+            # Discard if the LLM returned an error object (e.g. from Azure config issues)
+            if "error" in parsed and len(parsed) == 1:
+                raise ValueError(f"LLM returned error: {parsed['error']}")
+            # Ensure required keys exist
+            parsed.setdefault("volume", None)
+            parsed.setdefault("columns", [])
+            parsed.setdefault("tables", [])
+            parsed.setdefault("relationships", [])
+            parsed.setdefault("distributions", {})
+            parsed.setdefault("compliance_rules", {})
+            parsed.setdefault("temporal", {})
+            # Normalise entity_type — some LLMs return the string "null" or None
+            raw_et = parsed.get("entity_type")
+            if not raw_et or str(raw_et).strip().lower() in ("null", "none", ""):
+                parsed["entity_type"] = "records"
+            else:
+                parsed["entity_type"] = str(raw_et).strip()
+            # Normalise any custom masking rules → structured masking_op
+            _normalise_compliance_rules(parsed["compliance_rules"], llm_provider)
+            return parsed
         except Exception:
             pass  # Fall through to regex
 

@@ -71,8 +71,8 @@ DOMAIN_SIGNALS: List[tuple] = [
 ]
 
 
-def detect_domain_frameworks(context_text: str) -> Set[str]:
-    """Return set of frameworks implied by the free-form context text."""
+def _keyword_domain_frameworks(context_text: str) -> Set[str]:
+    """Return set of frameworks implied by the free-form context text (keyword-only)."""
     frameworks: Set[str] = set()
     if not context_text:
         return frameworks
@@ -81,6 +81,41 @@ def detect_domain_frameworks(context_text: str) -> Set[str]:
         if re.search(pattern, text, re.I):
             frameworks.update(fws)
     return frameworks
+
+
+_DOMAIN_FRAMEWORK_SYSTEM = (
+    "You are a compliance analyst. Identify applicable regulatory frameworks "
+    "from a data description. Return ONLY valid JSON, no explanation."
+)
+
+_DOMAIN_FRAMEWORK_PROMPT = """Given this data context:
+"{context}"
+
+Which regulatory frameworks apply? Return ONLY this JSON:
+{{"frameworks": ["PII", "HIPAA", ...]}}
+
+Choose only from: PII, PCI, HIPAA, GDPR, CCPA, SOX, FERPA, GLBA.
+Return ONLY the JSON object."""
+
+
+def detect_domain_frameworks(context_text: str, llm_provider=None) -> Set[str]:
+    """Return set of frameworks implied by context. Uses LLM when available."""
+    if not context_text:
+        return set()
+    if llm_provider is None:
+        return _keyword_domain_frameworks(context_text)
+    try:
+        import re as _re, json as _json
+        prompt = _DOMAIN_FRAMEWORK_PROMPT.format(context=context_text.strip()[:2000])
+        raw = llm_provider.generate(prompt, _DOMAIN_FRAMEWORK_SYSTEM)
+        raw = raw.strip()
+        if raw.startswith("```"):
+            raw = _re.sub(r"^```(?:json)?\s*", "", raw)
+            raw = _re.sub(r"\s*```$", "", raw)
+        result = _json.loads(raw)
+        return set(result.get("frameworks", []))
+    except Exception:
+        return _keyword_domain_frameworks(context_text)
 
 
 # ---------------------------------------------------------------------------
@@ -602,7 +637,7 @@ def detect_compliance_batch_llm(
     """
     _empty = {"results": {}, "warning": None, "attempts": 0}
 
-    if llm_provider.is_demo or not columns:
+    if not columns:
         return _empty
 
     domain_frameworks = domain_frameworks or set()

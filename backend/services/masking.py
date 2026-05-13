@@ -249,19 +249,18 @@ def normalize_masking_rule(
     # ── LLM path ──────────────────────────────────────────────────────────────
     if llm_provider is not None:
         try:
-            if not llm_provider.is_demo:
-                prompt = _NORM_PROMPT.format(rule=rule_text.strip())
-                raw = llm_provider.generate(prompt, _NORM_SYSTEM)
-                raw = raw.strip()
-                if raw.startswith("```"):
-                    raw = re.sub(r"^```(?:json)?\s*", "", raw)
-                    raw = re.sub(r"\s*```$", "", raw.strip())
-                op = json.loads(raw)
-                if isinstance(op, dict) and op.get("type") in OP_TYPES:
-                    for k in ("n", "size"):
-                        if k in op:
-                            op[k] = int(op[k])
-                    return op
+            prompt = _NORM_PROMPT.format(rule=rule_text.strip())
+            raw = llm_provider.generate(prompt, _NORM_SYSTEM)
+            raw = raw.strip()
+            if raw.startswith("```"):
+                raw = re.sub(r"^```(?:json)?\s*", "", raw)
+                raw = re.sub(r"\s*```$", "", raw.strip())
+            op = json.loads(raw)
+            if isinstance(op, dict) and op.get("type") in OP_TYPES:
+                for k in ("n", "size"):
+                    if k in op:
+                        op[k] = int(op[k])
+                return op
         except Exception as exc:
             logger.debug("normalize_masking_rule LLM failed: %s", exc)
 
