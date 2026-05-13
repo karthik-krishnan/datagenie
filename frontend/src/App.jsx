@@ -310,7 +310,7 @@ export default function App() {
           {currentStage === 1 && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
               <div>
-                <h2 className="text-xl font-semibold">Upload & Context</h2>
+                <h2 className="text-xl font-semibold">Describe Your Data</h2>
                 <p className="text-sm text-gray-500 mt-1">
                   Tell DataGenie about your data in any combination:
                 </p>

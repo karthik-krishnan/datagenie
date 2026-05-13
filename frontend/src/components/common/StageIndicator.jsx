@@ -1,7 +1,7 @@
 import { useAppStore } from "../../store/appStore.js";
 
 const STAGES = [
-  { n: 1, label: "Upload & Context" },
+  { n: 1, label: "Describe Your Data" },
   { n: 2, label: "Characteristics" },
   { n: 3, label: "Compliance" },
   { n: 4, label: "Relationships" },
