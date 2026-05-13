@@ -370,7 +370,7 @@ export default function App() {
                   <button
                     onClick={runInfer}
                     disabled={isLoading || !hasChangedSinceInfer}
-                    className="flex items-center gap-1.5 px-5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 font-medium transition-colors"
+                    className="inline-flex items-center gap-1.5 h-10 px-5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 text-base font-medium transition-colors"
                   >
                     {isLoading ? <Spinner /> : <><span className="text-base leading-none">↻</span> Infer Schema</>}
                   </button>
@@ -472,12 +472,12 @@ export default function App() {
                   <button
                     onClick={runInfer}
                     disabled={isLoading || (uploadedFiles.length === 0 && !contextText.trim())}
-                    className="px-5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 font-medium"
+                    className="inline-flex items-center h-10 px-5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 text-base font-medium"
                   >
                     {isLoading ? <Spinner /> : "Infer Schema"}
                   </button>
                 ) : (
-                  <button onClick={() => setStage(nextStage(1))} className="px-5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-medium">
+                  <button onClick={() => setStage(nextStage(1))} className="inline-flex items-center h-10 px-5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 text-base font-medium">
                     Continue →
                   </button>
                 )}
@@ -562,9 +562,9 @@ export default function App() {
                 )}
               </div>
 
-              <div className="flex justify-between">
-                <button onClick={() => setStage(prevStage(2))} className="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium">Back</button>
-                <button onClick={() => setStage(nextStage(2))} className="px-5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-medium">Continue →</button>
+              <div className="flex justify-between items-center">
+                <button onClick={() => setStage(prevStage(2))} className="inline-flex items-center h-10 px-5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-base font-medium">Back</button>
+                <button onClick={() => setStage(nextStage(2))} className="inline-flex items-center h-10 px-5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 text-base font-medium">Continue →</button>
               </div>
             </div>
           )}
@@ -602,9 +602,9 @@ export default function App() {
                 onUpdate={setRelationships}
                 aiRelationships={inferredSchema?.relationships || []}
               />
-              <div className="flex justify-between">
-                <button onClick={() => setStage(prevStage(4))} className="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium">Back</button>
-                <button onClick={() => setStage(nextStage(4))} className="px-5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-medium">Continue →</button>
+              <div className="flex justify-between items-center">
+                <button onClick={() => setStage(prevStage(4))} className="inline-flex items-center h-10 px-5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-base font-medium">Back</button>
+                <button onClick={() => setStage(nextStage(4))} className="inline-flex items-center h-10 px-5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 text-base font-medium">Continue →</button>
               </div>
             </div>
           )}
@@ -628,14 +628,14 @@ export default function App() {
               </div>
 
               <div className="flex justify-between items-center">
-                <button onClick={() => setStage(prevStage(5))} className="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium">Back</button>
+                <button onClick={() => setStage(prevStage(5))} className="inline-flex items-center h-10 px-5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-base font-medium">Back</button>
                 <div className="flex items-center gap-2">
                   {/* Only show Save as Profile when no profile is active.
                       When a profile is loaded, the banner at the top handles Update / Save as New. */}
                   {!profileId && (
                     <button
                       onClick={() => setShowSaveProfileModal(true)}
-                      className="px-5 py-2 rounded-lg border border-indigo-300 bg-white text-indigo-700 hover:bg-indigo-50"
+                      className="inline-flex items-center h-10 px-5 rounded-lg border border-indigo-300 bg-white text-indigo-700 hover:bg-indigo-50 text-base font-medium"
                     >
                       💾 Save as Profile
                     </button>

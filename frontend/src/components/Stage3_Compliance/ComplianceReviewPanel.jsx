@@ -272,13 +272,13 @@ export default function ComplianceReviewPanel({
         </label>
 
         {/* Navigation */}
-        <div className="flex justify-between pt-2">
-          <button onClick={onBack} className="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium">
+        <div className="flex justify-between items-center pt-2">
+          <button onClick={onBack} className="inline-flex items-center h-10 px-5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-base font-medium">
             Back
           </button>
           <button
             onClick={() => noneSelected ? onContinue?.() : setStep("fields")}
-            className="px-5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-medium"
+            className="inline-flex items-center h-10 px-5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 text-base font-medium"
           >
             {noneSelected ? "Continue without restrictions" : `Review ${selectedFrameworks.length} framework${selectedFrameworks.length !== 1 ? "s" : ""} →`}
           </button>
@@ -440,11 +440,11 @@ export default function ComplianceReviewPanel({
 
 
       {/* Navigation */}
-      <div className="flex justify-between pt-2">
-        <button onClick={() => setStep("select")} className="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium">
+      <div className="flex justify-between items-center pt-2">
+        <button onClick={() => setStep("select")} className="inline-flex items-center h-10 px-5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-base font-medium">
           Back
         </button>
-        <button onClick={onContinue} className="px-5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-medium">
+        <button onClick={onContinue} className="inline-flex items-center h-10 px-5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 text-base font-medium">
           Continue →
         </button>
       </div>
