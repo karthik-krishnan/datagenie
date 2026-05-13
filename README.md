@@ -6,13 +6,13 @@ DataGenie is a full-stack application that generates realistic, compliant synthe
 
 ## 📋 Generation Workflow
 
-| Stage | Description |
-|:------|:------------|
-| **Stage 1 — Upload & Context** | Upload sample files and/or describe your data in plain English. DataGenie infers tables, columns, types, volume, and sensitivity. Edit schema inline using dog-ear tabs. |
-| **Stage 2 — Characteristics** | Set total volume, variable child counts per parent (min/max/shape), numeric ranges, and categorical value distributions. |
-| **Stage 3 — Compliance** | Auto-detected sensitive fields across 8 frameworks. Review and adjust per-field masking actions; write custom plain-English rules. *(Skipped if compliance is disabled or no sensitive fields detected.)* |
-| **Stage 4 — Relationships** | Confirm or edit parent→child FK relationships (1:N, 1:1, N:N). *(Skipped for single-table schemas.)* |
-| **Stage 5 — Output & Preview** | Pick a format, preview sample rows in a tabbed view, then download. Multi-table schemas are bundled as a ZIP. |
+| # | Name | Description |
+|:-:|:-----|:------------|
+| 1 | **Upload & Context** | Upload sample files and/or describe your data in plain English. DataGenie infers tables, columns, types, volume, and sensitivity. Edit schema inline using dog-ear tabs. |
+| 2 | **Characteristics** | Set total volume, variable child counts per parent (min/max/shape), numeric ranges, and categorical value distributions. |
+| 3 | **Compliance** | Auto-detected sensitive fields across 8 frameworks. Review and adjust per-field masking actions; write custom plain-English rules. *(Skipped if compliance is disabled or no sensitive fields detected.)* |
+| 4 | **Relationships** | Confirm or edit parent→child FK relationships (1:N, 1:1, N:N). *(Skipped for single-table schemas.)* |
+| 5 | **Output & Preview** | Pick a format, preview sample rows in a tabbed view, then download. Multi-table schemas are bundled as a ZIP. |
 
 ---
 
