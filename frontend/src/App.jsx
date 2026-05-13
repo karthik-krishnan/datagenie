@@ -327,7 +327,7 @@ export default function App() {
                   <button
                     onClick={runInfer}
                     disabled={isLoading}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                    className="flex items-center gap-1.5 px-5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
                   >
                     {isLoading ? <Spinner /> : <><span className="text-base leading-none">↻</span> Infer Schema</>}
                   </button>
