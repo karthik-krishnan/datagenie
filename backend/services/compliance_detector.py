@@ -102,7 +102,9 @@ def detect_domain_frameworks(context_text: str, llm_provider=None) -> Set[str]:
     """Return set of frameworks implied by context. Uses LLM when available."""
     if not context_text:
         return set()
-    if llm_provider is None:
+    # Skip LLM call for providers that don't make external API calls — use keyword
+    # matching directly. Same result, no overhead (and no spurious delay in demo mode).
+    if llm_provider is None or not getattr(llm_provider, "sends_data_to_external_api", True):
         return _keyword_domain_frameworks(context_text)
     try:
         import re as _re, json as _json

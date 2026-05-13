@@ -27,7 +27,10 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 async def _get_llm_provider(db: AsyncSession, override: dict = None):
     """Return a provider instance. Uses the frontend-supplied override first (localStorage key),
     falls back to DB for self-hosted deployments, then falls back to Demo."""
-    if override and override.get("provider") and override["provider"] != "demo":
+    # If the frontend explicitly requests demo, honour it immediately — no DB lookup.
+    if override and override.get("provider") == "demo":
+        return get_provider({"provider": "demo"})
+    if override and override.get("provider"):
         try:
             return get_provider(override)
         except Exception:

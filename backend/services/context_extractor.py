@@ -319,8 +319,8 @@ def extract_from_context(context_text: str, llm_provider=None) -> Dict[str, Any]
             "distributions": {}, "compliance_rules": {}, "temporal": {},
         }
 
-    # Try LLM first
-    if llm_provider is not None:
+    # Try LLM first (skip for local/demo providers — go straight to regex)
+    if llm_provider is not None and getattr(llm_provider, "sends_data_to_external_api", True):
         try:
             # Truncate context to avoid hitting provider token limits.
             # Context extraction only needs the user's description, not file rows.
