@@ -176,6 +176,8 @@ class TestCatalogMatching:
 class _StubLLMProvider:
     """Minimal stub — returns canned JSON for a fixed set of columns."""
 
+    is_demo = False
+
     def __init__(self, response: str):
         self._response = response
 
@@ -184,6 +186,8 @@ class _StubLLMProvider:
 
 
 class _BrokenLLMProvider:
+    is_demo = False
+
     def generate(self, prompt: str, system_prompt: str = "") -> str:
         raise RuntimeError("network error")
 
@@ -353,6 +357,7 @@ class TestBatchLLMDetection:
         import json
         call_count = {"n": 0}
         class PartialThenFullProvider:
+            is_demo = False
             def generate(self, prompt, system_prompt=""):
                 call_count["n"] += 1
                 if call_count["n"] == 1:
@@ -377,6 +382,7 @@ class TestBatchLLMDetection:
         """When retries run out, warning must be set and name missing columns."""
         import json
         class AlwaysMissingProvider:
+            is_demo = False
             def generate(self, prompt, system_prompt=""):
                 return json.dumps({"email": {"is_sensitive": True, "frameworks": ["PII"],
                                               "field_type": "email_address",

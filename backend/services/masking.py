@@ -249,8 +249,7 @@ def normalize_masking_rule(
     # ── LLM path ──────────────────────────────────────────────────────────────
     if llm_provider is not None:
         try:
-            from services.llm_service import DemoProvider
-            if not isinstance(llm_provider, DemoProvider):
+            if not llm_provider.is_demo:
                 prompt = _NORM_PROMPT.format(rule=rule_text.strip())
                 raw = llm_provider.generate(prompt, _NORM_SYSTEM)
                 raw = raw.strip()

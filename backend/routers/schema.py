@@ -121,7 +121,7 @@ async def infer(
     llm_provider_obj = await _get_llm_provider(db, llm_override)
 
     # --- Validate provider config early — surface clear errors for misconfigured providers ---
-    from services.llm_service import DemoProvider, AzureOpenAIProvider
+    from services.llm_service import AzureOpenAIProvider
     llm_warning: str | None = None
     if isinstance(llm_provider_obj, AzureOpenAIProvider):
         if not llm_provider_obj.endpoint:
@@ -215,7 +215,7 @@ async def infer(
             # In demo mode the LLM is unavailable so _regex_fallback runs inside
             # extract_from_context. If it still returns no columns, use a hardcoded
             # default set rather than treating an empty LLM result as needing a fallback.
-            if not columns and isinstance(llm_provider_obj, DemoProvider):
+            if not columns and llm_provider_obj.is_demo:
                 from services.schema_inferrer import _infer_schema_from_context
                 fallback = _infer_schema_from_context(context_text)
                 columns = [{"name": c["name"], "type": c.get("type", "string"), "enum_values": c.get("enum_values", [])} for c in fallback["tables"][0]["columns"]]

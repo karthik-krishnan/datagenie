@@ -600,11 +600,9 @@ def detect_compliance_batch_llm(
     }
     Caller falls back to detect_compliance() for any column absent from results["results"].
     """
-    from services.llm_service import DemoProvider  # local import to avoid circular dep
-
     _empty = {"results": {}, "warning": None, "attempts": 0}
 
-    if isinstance(llm_provider, DemoProvider) or not columns:
+    if llm_provider.is_demo or not columns:
         return _empty
 
     domain_frameworks = domain_frameworks or set()

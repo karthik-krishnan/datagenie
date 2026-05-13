@@ -322,8 +322,7 @@ def extract_from_context(context_text: str, llm_provider=None) -> Dict[str, Any]
     # Try LLM first
     if llm_provider is not None:
         try:
-            from services.llm_service import DemoProvider
-            if not isinstance(llm_provider, DemoProvider):
+            if not llm_provider.is_demo:
                 # Truncate context to avoid hitting provider token limits.
                 # Context extraction only needs the user's description, not file rows.
                 truncated = context_text.strip()[:4000]
