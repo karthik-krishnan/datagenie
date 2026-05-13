@@ -563,7 +563,7 @@ export default function App() {
               </div>
 
               <div className="flex justify-between">
-                <button onClick={() => setStage(prevStage(2))} className="px-5 py-2 rounded-lg border border-gray-300 hover:bg-gray-50">Back</button>
+                <button onClick={() => setStage(prevStage(2))} className="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50">Back</button>
                 <button onClick={() => setStage(nextStage(2))} className="px-5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">Continue →</button>
               </div>
             </div>
@@ -603,7 +603,7 @@ export default function App() {
                 aiRelationships={inferredSchema?.relationships || []}
               />
               <div className="flex justify-between">
-                <button onClick={() => setStage(prevStage(4))} className="px-5 py-2 rounded-lg border border-gray-300 hover:bg-gray-50">Back</button>
+                <button onClick={() => setStage(prevStage(4))} className="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50">Back</button>
                 <button onClick={() => setStage(nextStage(4))} className="px-5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">Continue →</button>
               </div>
             </div>
@@ -628,7 +628,7 @@ export default function App() {
               </div>
 
               <div className="flex justify-between items-center">
-                <button onClick={() => setStage(prevStage(5))} className="px-5 py-2 rounded-lg border border-gray-300 hover:bg-gray-50">Back</button>
+                <button onClick={() => setStage(prevStage(5))} className="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50">Back</button>
                 <div className="flex items-center gap-2">
                   {/* Only show Save as Profile when no profile is active.
                       When a profile is loaded, the banner at the top handles Update / Save as New. */}

@@ -278,7 +278,7 @@ export default function ComplianceReviewPanel({
           </button>
           <button
             onClick={() => noneSelected ? onContinue?.() : setStep("fields")}
-            className="px-5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 text-sm"
+            className="px-5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
           >
             {noneSelected ? "Continue without restrictions" : `Review ${selectedFrameworks.length} framework${selectedFrameworks.length !== 1 ? "s" : ""} →`}
           </button>
