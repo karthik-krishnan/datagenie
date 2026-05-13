@@ -425,14 +425,15 @@ export default function App() {
               )}
 
               <div className="flex justify-end gap-2">
-                <button
-                  onClick={runInfer}
-                  disabled={isLoading || (uploadedFiles.length === 0 && !contextText.trim())}
-                  className="px-5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {isLoading ? <Spinner /> : "Infer Schema"}
-                </button>
-                {inferredSchema && (
+                {!inferredSchema ? (
+                  <button
+                    onClick={runInfer}
+                    disabled={isLoading || (uploadedFiles.length === 0 && !contextText.trim())}
+                    className="px-5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    {isLoading ? <Spinner /> : "Infer Schema"}
+                  </button>
+                ) : (
                   <button onClick={() => setStage(nextStage(1))} className="px-5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
                     Continue →
                   </button>
