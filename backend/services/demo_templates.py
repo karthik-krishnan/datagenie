@@ -19,6 +19,9 @@ MULTI_TEMPLATES: Dict[str, Dict[str, Any]] = {
             "order", "purchase", "transaction", "invoice", "sale", "product",
             "ecommerce", "e-commerce", "checkout", "payment", "customer", "shop",
             "cart", "item", "line item", "catalogue",
+            # Also catch generic user/contact/profile queries — ecommerce is the
+            # best multi-table showcase for those concepts
+            "user", "person", "people", "member", "contact", "profile", "account",
         ],
         "entity_type": "customers",
         "volume": 50,          # number of customers
@@ -694,26 +697,21 @@ DEFAULT_TEMPLATE = "ecommerce"   # multi-table master-detail is the showcase def
 
 def pick_template(context_text: str) -> tuple:
     """
-    Returns (template_key, is_multi) — chooses the best template across both
-    multi-table and single-table dicts based on keyword matches.
+    Returns (template_key, is_multi) — always picks a multi-table template so
+    demo mode always showcases master-detail relationships.
+    Falls back to DEFAULT_TEMPLATE (ecommerce) when nothing matches.
     """
     text = context_text.lower() if context_text else ""
 
     best_key = DEFAULT_TEMPLATE
     best_score = 0
-    best_multi = True
 
     for key, tmpl in MULTI_TEMPLATES.items():
         score = sum(1 for kw in tmpl["keywords"] if kw in text)
         if score > best_score:
-            best_score, best_key, best_multi = score, key, True
+            best_score, best_key = score, key
 
-    for key, tmpl in TEMPLATES.items():
-        score = sum(1 for kw in tmpl["keywords"] if kw in text)
-        if score > best_score:
-            best_score, best_key, best_multi = score, key, False
-
-    return best_key, best_multi
+    return best_key, True  # always multi-table
 
 
 def _build_column(c: Dict[str, Any], compliance_rules: Dict[str, Any]) -> Dict[str, Any]:
