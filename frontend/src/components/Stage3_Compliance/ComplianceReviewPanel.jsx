@@ -136,6 +136,7 @@ export default function ComplianceReviewPanel({
   onContinue,
 }) {
   const [step, setStep] = useState("select");            // "select" | "fields"
+  const [activeTable, setActiveTable] = useState(null);  // table name for the fields tab
   const [normalizingFields, setNormalizingFields] = useState({}); // fieldName → true while pending
   const [ruleWarnings, setRuleWarnings] = useState({});           // fieldName → warning string
 
@@ -288,6 +289,16 @@ export default function ComplianceReviewPanel({
   }
 
   // ── Render: Step 2 — field-level handling ────────────────────────────────
+
+  // Group sensitive fields by table for tabbed display
+  const tableNames = [...new Set(allSensitiveFields.map((f) => f.table))];
+  const currentTable = activeTable && tableNames.includes(activeTable)
+    ? activeTable
+    : tableNames[0] ?? null;
+  const visibleFields = tableNames.length > 1
+    ? allSensitiveFields.filter((f) => f.table === currentTable)
+    : allSensitiveFields;
+
   return (
     <div className="space-y-4">
 
@@ -337,7 +348,38 @@ export default function ComplianceReviewPanel({
             </button>
           </div>
 
-          {allSensitiveFields.map(({ col, compliance }) => {
+          {/* Dog-ear tabs — only shown when schema has multiple tables */}
+          {tableNames.length > 1 && (
+            <div className="flex items-end gap-1 pl-3 overflow-x-auto">
+              {tableNames.map((tName) => {
+                const count = allSensitiveFields.filter((f) => f.table === tName).length;
+                const active = tName === currentTable;
+                return (
+                  <button
+                    key={tName}
+                    onClick={() => setActiveTable(tName)}
+                    className={[
+                      "flex items-center gap-2 px-4 py-2 text-sm font-medium whitespace-nowrap",
+                      "border rounded-t-lg transition-all select-none",
+                      active
+                        ? "bg-white border-gray-200 [border-bottom-color:white] text-gray-900 relative z-10 -mb-px"
+                        : "bg-gray-100 border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 mt-1",
+                    ].join(" ")}
+                  >
+                    {tName}
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
+                      active ? "bg-indigo-100 text-indigo-700" : "bg-gray-200 text-gray-500"
+                    }`}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          <div className={tableNames.length > 1 ? "border border-gray-200 rounded-b-xl rounded-tr-xl p-4 space-y-3" : "space-y-3"}>
+          {visibleFields.map(({ col, compliance }) => {
             const rule            = complianceRules[col.name] || {};
             const preFilledCtx    = !!rule.custom_rule;
             const isCustom        = rule.action === "Custom" || (rule.action && !findAction(rule.action));
@@ -435,6 +477,7 @@ export default function ComplianceReviewPanel({
               </div>
             );
           })}
+          </div>
         </>
       )}
 
