@@ -123,6 +123,13 @@ async def infer(
     # --- Resolve LLM provider (override from browser > DB > demo fallback) ---
     llm_provider_obj = await _get_llm_provider(db, llm_override)
 
+    # --- Demo short-circuit: no files + demo provider → return canned multi-table template ---
+    # The /infer endpoint would otherwise produce a useless single-table "records" schema
+    # because DemoProvider never calls an LLM and context extraction yields nothing useful.
+    if not parsed_files and not getattr(llm_provider_obj, "sends_data_to_external_api", True):
+        from services.demo_templates import get_demo_schema
+        return get_demo_schema(context_text)
+
     # --- Validate provider config early — surface clear errors for misconfigured providers ---
     from services.llm_service import AzureOpenAIProvider
     llm_warning: str | None = None
