@@ -17,7 +17,7 @@ const DEMO_STARTERS = [
   {
     id: "demo-healthcare",
     title: "Healthcare Patients",
-    description: "Patient records with diagnoses, prescriptions, and insurance IDs.",
+    description: "Patients → Visits → Prescriptions. MRN, diagnoses, and insurance IDs under HIPAA and GDPR.",
     emoji: "🏥",
     contextKeyword: "patient clinical hospital diagnosis HIPAA",
     frameworks: ["HIPAA", "PII", "GDPR"],
@@ -25,7 +25,7 @@ const DEMO_STARTERS = [
   {
     id: "demo-hr",
     title: "HR & Payroll",
-    description: "Employee roster with salaries, departments, and tax identifiers.",
+    description: "Employees → Leave Requests. Salaries, departments, SSN/tax IDs, and SOX, PII compliance.",
     emoji: "👩‍💼",
     contextKeyword: "employee payroll salary HR department SOX",
     frameworks: ["SOX", "PII", "GDPR"],
@@ -33,7 +33,7 @@ const DEMO_STARTERS = [
   {
     id: "demo-students",
     title: "Student Records",
-    description: "Enrolment, GPA, and financial aid protected under FERPA.",
+    description: "Students → Enrollments. GPA, financial aid, and academic records under FERPA and PII.",
     emoji: "🎓",
     contextKeyword: "student gpa academic enrollment FERPA",
     frameworks: ["FERPA", "PII", "GDPR"],
