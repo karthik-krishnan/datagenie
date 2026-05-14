@@ -169,9 +169,9 @@ export default function ProfilePicker() {
       {/* Header — identical to App.jsx */}
       <header className="border-b border-gray-200 px-6 py-3 flex items-center bg-white">
         <div className="flex items-center gap-2">
-          <img src="/favicon.svg" alt="DataGenie" className="w-8 h-8" />
+          <img src="/favicon.svg" alt="Datagenia" className="w-8 h-8" />
           <div className="flex flex-col items-start shrink-0">
-            <span className="text-lg font-semibold">DataGenie</span>
+            <span className="text-lg font-semibold">Datagenia</span>
             <span className="text-xs font-normal text-gray-400 leading-none whitespace-nowrap">AI-powered synthetic test data generator</span>
           </div>
         </div>
@@ -208,7 +208,7 @@ export default function ProfilePicker() {
 
         {/* ── Page title ── */}
         <div className="mb-6">
-          <h1 className="text-xl font-semibold text-gray-900">Welcome to DataGenie</h1>
+          <h1 className="text-xl font-semibold text-gray-900">Welcome to Datagenia</h1>
           <p className="text-sm text-gray-500 mt-0.5">Start fresh, pick a template, or reload a saved profile.</p>
         </div>
 
@@ -221,7 +221,7 @@ export default function ProfilePicker() {
           <div className="flex-1 min-w-0">
             <div className="font-semibold text-base">Start from scratch</div>
             <div className="text-sm text-indigo-200 mt-0.5">
-              Describe your data in plain English, upload a sample file, or both — DataGenie infers the schema for you.
+              Describe your data in plain English, upload a sample file, or both — Datagenia infers the schema for you.
             </div>
           </div>
           <div className="text-indigo-300 group-hover:translate-x-0.5 transition-transform text-xl shrink-0">→</div>

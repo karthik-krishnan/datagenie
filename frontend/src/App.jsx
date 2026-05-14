@@ -286,9 +286,9 @@ export default function App() {
           className="text-lg font-semibold flex items-center gap-2 hover:text-indigo-600 transition-colors shrink-0"
           title="Back to home"
         >
-          <img src="/favicon.svg" alt="DataGenie" className="w-8 h-8" />
+          <img src="/favicon.svg" alt="Datagenia" className="w-8 h-8" />
           <div className="flex flex-col items-start shrink-0">
-            <span>DataGenie</span>
+            <span>Datagenia</span>
             <span className="text-xs font-normal text-gray-400 leading-none whitespace-nowrap">AI-powered synthetic test data generator</span>
           </div>
         </button>
@@ -346,7 +346,7 @@ export default function App() {
               <div>
                 <h2 className="text-xl font-semibold">Describe Your Data</h2>
                 <p className="text-sm text-gray-500 mt-1">
-                  Tell DataGenie about your data in any combination:
+                  Tell Datagenia about your data in any combination:
                 </p>
                 <ul className="mt-2 space-y-1 text-sm text-gray-500">
                   <li className="flex items-start gap-2">
