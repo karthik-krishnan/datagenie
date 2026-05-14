@@ -298,6 +298,13 @@ export default function App() {
       <div className="flex flex-1 overflow-hidden">
         <aside className="w-60 bg-gray-100 border-r border-gray-200 flex flex-col">
           <div className="p-4 flex-1">
+            <button
+              onClick={() => { reset(); setShowProfilePicker(true); }}
+              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-indigo-600 transition-colors mb-4 group"
+            >
+              <span className="group-hover:-translate-x-0.5 transition-transform">←</span>
+              <span>Templates &amp; Profiles</span>
+            </button>
             <StageIndicator />
           </div>
 
