@@ -9,7 +9,7 @@ const DEMO_STARTERS = [
   {
     id: "demo-ecommerce",
     title: "E-Commerce Orders",
-    description: "Customers → Orders → Order Items. PCI, PII, GDPR compliance demo.",
+    description: "Customers → Orders → Order Items. PCI, PII, and GDPR compliance.",
     emoji: "🛒",
     contextKeyword: "ecommerce orders checkout payment customer",
     frameworks: ["PCI", "PII", "GDPR"],
@@ -41,7 +41,7 @@ const DEMO_STARTERS = [
   {
     id: "demo-banking",
     title: "Banking & Accounts",
-    description: "Customers → Accounts → Transactions + Loans. PCI, GLBA, SOX compliance.",
+    description: "Customers → Accounts → Transactions + Loans. PCI, GLBA, and SOX compliance.",
     emoji: "🏦",
     contextKeyword: "bank account transaction loan kyc AML GLBA",
     frameworks: ["PCI", "GLBA", "SOX", "PII"],
