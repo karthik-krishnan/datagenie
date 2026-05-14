@@ -300,7 +300,7 @@ export default function App() {
           <div className="p-4 flex-1">
             <button
               onClick={() => { reset(); setShowProfilePicker(true); }}
-              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-indigo-600 transition-colors mb-4 group"
+              className="w-full flex items-center gap-2 px-3 py-2 mb-4 rounded-lg border border-gray-300 bg-white text-sm text-gray-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors group"
             >
               <span className="group-hover:-translate-x-0.5 transition-transform">←</span>
               <span>Templates &amp; Profiles</span>
