@@ -227,10 +227,22 @@ def _regex_fallback(context: str) -> Dict[str, Any]:
     }
 
 
-def extract_from_context(context_text: str, llm_provider=None) -> Dict[str, Any]:
+def extract_from_context(
+    context_text: str,
+    llm_provider=None,
+    allow_fallback: bool = True,
+    warnings: list = None,
+) -> Dict[str, Any]:
     """
-    Main entry point. Uses LLM if available, falls back to regex.
+    Main entry point. Uses LLM if available.
+
+    allow_fallback: if True (default) and the LLM call fails, fall back to
+      regex heuristics and append a notice to `warnings` (if provided).
+      If False and the LLM call fails, raises LLMUnavailableError — the
+      caller is responsible for surfacing this to the user.
     """
+    from services.llm_service import LLMUnavailableError
+
     if not context_text.strip():
         return {
             "volume": None, "entity_type": "records", "columns": [],
@@ -271,8 +283,14 @@ def extract_from_context(context_text: str, llm_provider=None) -> Dict[str, Any]
             # Normalise any custom masking rules → structured masking_op
             _normalise_compliance_rules(parsed["compliance_rules"], llm_provider)
             return parsed
-        except Exception:
-            pass  # Fall through to regex
+        except Exception as exc:
+            if not allow_fallback:
+                raise LLMUnavailableError(
+                    f"Context extraction failed: {exc}. "
+                    "Enable rule-based fallback in Settings or check your LLM provider."
+                ) from exc
+            if warnings is not None:
+                warnings.append("Schema extraction used rule-based fallback — LLM call failed.")
 
     result = _regex_fallback(context_text)
     # Normalise any custom masking rules from the regex fallback too

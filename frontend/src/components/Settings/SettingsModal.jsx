@@ -25,6 +25,9 @@ export default function SettingsModal() {
   const [complianceEnabled, setComplianceEnabled] = useState(
     () => getAppSettings().complianceEnabled !== false
   );
+  const [ruleBasedFallbackEnabled, setRuleBasedFallbackEnabled] = useState(
+    () => getAppSettings().ruleBasedFallbackEnabled === true
+  );
 
   // Lazy-init from localStorage so the masked badge is visible on the very first render
   // (rather than flashing an empty input while the effect fires).
@@ -78,7 +81,7 @@ export default function SettingsModal() {
     const prevKey = getProviderConfig(provider).api_key || "";
     const config = { provider, api_key: apiKey.trim() || prevKey, model, extra_config: extra };
     setLLMSettings(config); // writes per-provider to localStorage + updates store
-    setAppSettings({ complianceEnabled }); // persist feature flags
+    setAppSettings({ complianceEnabled, ruleBasedFallbackEnabled }); // persist feature flags
     setShowSettings(false);
   };
 
@@ -285,6 +288,27 @@ export default function SettingsModal() {
                 >
                   <span
                     className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${complianceEnabled ? "translate-x-5" : "translate-x-0"}`}
+                  />
+                </button>
+              </div>
+              <div className="flex items-center justify-between mt-4">
+                <div>
+                  <p className="text-sm font-medium text-gray-800">Rule-Based Fallback</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    When enabled, schema inference falls back to built-in rules if the LLM
+                    fails — with a visible warning. When disabled, LLM failures surface as
+                    an explicit error so you know exactly what went wrong.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRuleBasedFallbackEnabled((v) => !v)}
+                  className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors ml-4 ${ruleBasedFallbackEnabled ? "bg-indigo-500" : "bg-gray-300"}`}
+                  role="switch"
+                  aria-checked={ruleBasedFallbackEnabled}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${ruleBasedFallbackEnabled ? "translate-x-5" : "translate-x-0"}`}
                   />
                 </button>
               </div>

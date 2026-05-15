@@ -192,6 +192,8 @@ def _keyword_normalize(rule: str) -> Optional[Dict[str, Any]]:
 def normalize_masking_rule(
     rule_text: str,
     llm_provider=None,
+    allow_fallback: bool = True,
+    warnings: list = None,
 ) -> Optional[Dict[str, Any]]:
     """
     Convert a plain-English masking instruction to a MaskingOp dict.
@@ -219,6 +221,14 @@ def normalize_masking_rule(
                 return op
         except Exception as exc:
             logger.debug("normalize_masking_rule LLM failed: %s", exc)
+            from services.llm_service import LLMUnavailableError
+            if not allow_fallback:
+                raise LLMUnavailableError(
+                    f"Masking rule normalisation failed: {exc}. "
+                    "Enable rule-based fallback in Settings or check your LLM provider."
+                ) from exc
+            if warnings is not None:
+                warnings.append("Masking rule normalisation used keyword fallback — LLM call failed.")
 
     # ── Keyword fallback ──────────────────────────────────────────────────────
     return _keyword_normalize(rule_text)

@@ -2,6 +2,13 @@ import json
 from typing import Dict, Any, Optional
 
 
+class LLMUnavailableError(Exception):
+    """
+    Raised when an LLM call fails and rule-based fallback is disabled.
+    The message is user-facing — describe which call failed and what to do.
+    """
+
+
 class LLMProvider:
     def generate(self, prompt: str, system_prompt: str = "") -> str:
         raise NotImplementedError
