@@ -1,6 +1,6 @@
 """
 Prompts for masking.py — convert a plain-English masking instruction into a
-structured MaskingOp JSON object.
+Python lambda that masks a string value.
 
 Usage:
     from prompts.masking_normalize import SYSTEM, TEMPLATE
@@ -9,47 +9,30 @@ Usage:
 """
 
 SYSTEM = (
-    "You are a data-masking rule parser. Convert plain-English masking instructions "
-    "into a structured JSON operation. Return ONLY valid JSON, no explanation."
+    "You are a data-masking code generator. Convert plain-English masking instructions "
+    "into a Python lambda. Return ONLY valid JSON, no explanation."
 )
 
-TEMPLATE = """Convert this masking rule to a structured operation:
+TEMPLATE = """Convert this masking rule into a Python lambda that takes a string and returns the masked string.
 
 Rule: "{rule}"
 
-Return a JSON object with EXACTLY one of these forms:
-  {{"type": "show_last_n_digits",  "n": <integer>}}
-  {{"type": "mask_last_n_digits",  "n": <integer>}}
-  {{"type": "show_first_n_digits", "n": <integer>}}
-  {{"type": "show_last_n_chars",   "n": <integer>}}
-  {{"type": "mask_last_n_chars",   "n": <integer>}}
-  {{"type": "show_first_n_chars",  "n": <integer>}}
-  {{"type": "mask_first_n_chars",  "n": <integer>}}
-  {{"type": "partial_email"}}
-  {{"type": "date_year_only"}}
-  {{"type": "range_bucket", "size": <integer>}}
-  {{"type": "redact"}}
-  {{"type": "mask_all"}}
-  {{"type": "format_preserve_mask"}}
+Return a JSON object with exactly this form:
+  {{"fn": "lambda v: <expression>"}}
 
-Guidelines:
-- "last 4 digits visible" / "show last 4 digits" / "****1234" → show_last_n_digits, n=4
-- "mask last 4 digits" / "hide last digit" → mask_last_n_digits, n=<N or 1>
-- "show first 6 digits" → show_first_n_digits, n=6
-- "mask everything except last character" / "show only last char" → show_last_n_chars, n=1
-- "mask everything except last 3 characters" → show_last_n_chars, n=3
-- "show last 4 characters" / "reveal last 4 chars" → show_last_n_chars, n=4
-- "mask last 3 characters" / "hide last 2 chars" → mask_last_n_chars, n=<N>
-- "keep first 3 characters" / "show first 3 chars" → show_first_n_chars, n=3
-- "mask first 4 chars" → mask_first_n_chars, n=4
-- "mask email" / "obfuscate email" → partial_email
-- "year only" / "just the year" → date_year_only
-- "age range" / "bucket" / "10-year range" → range_bucket, size=10
-- "redact" / "remove" / "blank out" → redact
-- "mask everything" / "full mask" / "hide all" (with no exception) → mask_all
-- "keep format" / "format-preserving" → format_preserve_mask
-- If n is not stated, default to 4 for digit ops, 1 for "last char" ops, 3 for other char ops.
-- IMPORTANT: "mask everything except last N chars" means SHOW last N chars → show_last_n_chars
+Requirements:
+- The lambda takes a single string argument `v`
+- Returns a string with the masking applied
+- Use `*` as the masking character
+- No imports, no function calls outside of built-ins (len, str, etc.)
+- Handle edge cases (e.g. string shorter than expected)
+
+Examples:
+- "mask last 4 characters" → {{"fn": "lambda v: v[:-4] + '****' if len(v) > 4 else '*' * len(v)"}}
+- "show only last 4 digits" → {{"fn": "lambda v: '*' * (len(v) - 4) + v[-4:] if len(v) > 4 else v"}}
+- "mask first and last character" → {{"fn": "lambda v: '*' + v[1:-1] + '*' if len(v) > 2 else '*' * len(v)"}}
+- "redact" → {{"fn": "lambda v: '[REDACTED]'"}}
+- "mask all" → {{"fn": "lambda v: '*' * len(v)"}}
 
 Return ONLY the JSON object.
 """
