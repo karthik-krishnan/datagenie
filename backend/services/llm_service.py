@@ -167,63 +167,83 @@ class AzureOpenAIProvider(LLMProvider):
 
 
 class AzureFoundryProvider(LLMProvider):
-    """Azure AI Foundry — supports GPT, Llama, Mistral, Phi via Azure AI Inference SDK,
-    and Claude models via the Anthropic SDK (which uses the Anthropic Messages API,
-    not the OpenAI-compatible Chat Completions API that other models use)."""
+    """Azure AI Foundry — user supplies the base endpoint, e.g. https://resource.openai.azure.com
+
+    • Claude  → {base}/anthropic  via AnthropicFoundry
+    • Others  → {base}/openai/v1  via OpenAI client (or ChatCompletionsClient for *.services.ai.azure.com)
+    """
 
     def __init__(self, api_key: str, endpoint: str, model: str = ""):
         self.api_key = api_key
-        # Normalise endpoint — strip trailing slash
-        self.endpoint = (endpoint or "").strip().rstrip("/")
-        self.model = model or ""  # optional: some endpoints serve a single model
+        self.base = (endpoint or "").strip().rstrip("/")
+        self.model = model or ""
 
     def _is_claude_model(self) -> bool:
         return self.model.lower().startswith("claude")
 
     def generate(self, prompt: str, system_prompt: str = "") -> str:
-        if not self.endpoint:
+        if not self.base:
             return json.dumps({"error": "Azure AI Foundry endpoint is not configured. "
-                                        "Set 'endpoint' in Settings → Extra Config."})
+                                        "Enter your base endpoint, e.g. "
+                                        "https://your-resource.openai.azure.com"})
 
-        # Claude models on Azure AI Foundry use the Anthropic Messages API,
-        # not the OpenAI-compatible Chat Completions API used by GPT/Llama/etc.
-        # Routing to the Anthropic SDK avoids the "api_not_supported" error.
         if self._is_claude_model():
             return self._generate_claude(prompt, system_prompt)
+        return self._generate_openai(prompt, system_prompt)
 
+    def _generate_openai(self, prompt: str, system_prompt: str = "") -> str:
+        """GPT and other models.
+
+        • openai.azure.com  → OpenAI client at {base}/openai/v1
+        • services.ai.azure.com (legacy AI Inference) → ChatCompletionsClient at {base}/models
+        """
         try:
-            from azure.ai.inference import ChatCompletionsClient
-            from azure.ai.inference.models import SystemMessage, UserMessage
-            from azure.core.credentials import AzureKeyCredential
-
-            client = ChatCompletionsClient(
-                endpoint=self.endpoint,
-                credential=AzureKeyCredential(self.api_key),
-            )
-            kwargs = dict(
-                messages=[
-                    SystemMessage(content=system_prompt or "Generate realistic JSON test data."),
-                    UserMessage(content=prompt),
-                ],
-            )
-            if self.model:
-                kwargs["model"] = self.model
-            resp = client.complete(**kwargs)
-            return resp.choices[0].message.content or ""
+            if "openai.azure.com" in self.base:
+                from openai import OpenAI
+                client = OpenAI(
+                    base_url=f"{self.base}/openai/v1",
+                    api_key=self.api_key,
+                )
+                resp = client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": system_prompt or "Generate realistic JSON test data."},
+                        {"role": "user", "content": prompt},
+                    ],
+                    max_tokens=4096,
+                )
+                return resp.choices[0].message.content or ""
+            else:
+                # Legacy Azure AI Inference endpoint (*.services.ai.azure.com)
+                from azure.ai.inference import ChatCompletionsClient
+                from azure.ai.inference.models import SystemMessage, UserMessage
+                from azure.core.credentials import AzureKeyCredential
+                client = ChatCompletionsClient(
+                    endpoint=f"{self.base}/models",
+                    credential=AzureKeyCredential(self.api_key),
+                )
+                kwargs = dict(
+                    messages=[
+                        SystemMessage(content=system_prompt or "Generate realistic JSON test data."),
+                        UserMessage(content=prompt),
+                    ],
+                )
+                if self.model:
+                    kwargs["model"] = self.model
+                resp = client.complete(**kwargs)
+                return resp.choices[0].message.content or ""
         except Exception as e:
             cause = getattr(e, "__cause__", None) or getattr(e, "__context__", None)
             detail = str(cause) if cause else str(e)
             return json.dumps({"error": detail})
 
     def _generate_claude(self, prompt: str, system_prompt: str = "") -> str:
-        """Route Claude models through the Anthropic SDK using the Foundry endpoint."""
+        """Claude models via AnthropicFoundry at the /anthropic path."""
         try:
-            from anthropic import Anthropic
-            # Anthropic SDK expects a base_url ending with /; it appends /v1/messages etc.
-            base_url = self.endpoint + "/"
-            client = Anthropic(
-                base_url=base_url,
+            from anthropic import AnthropicFoundry
+            client = AnthropicFoundry(
                 api_key=self.api_key,
+                base_url=f"{self.base}/anthropic",
             )
             msg = client.messages.create(
                 model=self.model,
