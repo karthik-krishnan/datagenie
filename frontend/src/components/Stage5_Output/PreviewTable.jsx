@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { sortColumnsForDisplay } from "../../store/appStore.js";
 
 export default function PreviewTable({ data }) {
   const entries = data ? Object.entries(data) : [];
@@ -13,7 +14,11 @@ export default function PreviewTable({ data }) {
   }
 
   const [tableName, rows] = entries[activeTab] ?? entries[0];
-  const cols = rows.length > 0 ? Object.keys(rows[0]) : [];
+  // Sort: PK first, FK (_id) second, everything else last
+  const cols = sortColumnsForDisplay(
+    rows.length > 0 ? Object.keys(rows[0]) : [],
+    tableName
+  );
 
   return (
     <div>

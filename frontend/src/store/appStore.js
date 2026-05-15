@@ -1,6 +1,30 @@
 import { create } from "zustand";
 import { getLLMConfig, setLLMConfig, getAppSettings, setAppSettings } from "../utils/llmStorage.js";
 
+/**
+ * Sort columns so PK appears first, then FK columns (_id), then everything else.
+ * Works on arrays of column objects (with .name) or plain name strings.
+ *
+ * Scoring:
+ *   0 — own PK: exactly "id" or "{tableName}_id"
+ *   1 — any other *_id column (FK)
+ *   2 — everything else
+ */
+export function sortColumnsForDisplay(columns, tableName) {
+  const tname = (tableName || "").toLowerCase().replace(/s$/, ""); // strip trailing 's'
+  const score = (name) => {
+    const n = (name || "").toLowerCase();
+    if (n === "id" || n === `${tname}_id` || n === `${tname}id`) return 0;
+    if (n.endsWith("_id") || n.endsWith("id")) return 1;
+    return 2;
+  };
+  return [...columns].sort((a, b) => {
+    const na = typeof a === "string" ? a : a.name;
+    const nb = typeof b === "string" ? b : b.name;
+    return score(na) - score(nb);
+  });
+}
+
 export const useAppStore = create((set, get) => ({
   currentStage: 1,
   sessionId: null,
@@ -55,7 +79,12 @@ export const useAppStore = create((set, get) => ({
   applyInferResult: (result, goToStage = 1) => {
     const state = get();
     const ext = result.extracted || {};
-    const tables = result.tables || [];
+
+    // Sort each table's columns: PK first, FK (_id) second, rest last
+    const tables = (result.tables || []).map((t) => ({
+      ...t,
+      columns: sortColumnsForDisplay(t.columns, t.table_name),
+    }));
 
     // Build characteristics patch
     const charPatch = { ...state.characteristics };
@@ -88,7 +117,7 @@ export const useAppStore = create((set, get) => ({
     }
 
     set({
-      inferredSchema: result,
+      inferredSchema: { ...result, tables },
       relationships: result.relationships || [],
       characteristics: charPatch,
       ...(ext.compliance_rules && Object.keys(ext.compliance_rules).length > 0
