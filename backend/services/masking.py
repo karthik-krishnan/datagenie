@@ -206,29 +206,51 @@ def normalize_masking_rule(
 
     # ── LLM path (skip for demo/local providers — keyword fallback is equivalent) ──
     if llm_provider is not None and getattr(llm_provider, "sends_data_to_external_api", True):
-        try:
-            prompt = _NORM_PROMPT.format(rule=rule_text.strip())
-            raw = llm_provider.generate(prompt, _NORM_SYSTEM)
-            raw = raw.strip()
-            if raw.startswith("```"):
-                raw = re.sub(r"^```(?:json)?\s*", "", raw)
-                raw = re.sub(r"\s*```$", "", raw.strip())
-            op = json.loads(raw)
-            if isinstance(op, dict) and op.get("type") in OP_TYPES:
-                for k in ("n", "size"):
-                    if k in op:
-                        op[k] = int(op[k])
-                return op
-        except Exception as exc:
-            logger.debug("normalize_masking_rule LLM failed: %s", exc)
-            from services.llm_service import LLMUnavailableError
-            if not allow_fallback:
-                raise LLMUnavailableError(
-                    f"Masking rule normalisation failed: {exc}. "
-                    "Enable rule-based fallback in Settings or check your LLM provider."
-                ) from exc
-            if warnings is not None:
-                warnings.append("Masking rule normalisation used keyword fallback — LLM call failed.")
+        last_exc: Exception | None = None
+        for attempt in range(1, 4):  # up to 3 attempts
+            try:
+                # On retry, hint the LLM about valid op types so it self-corrects
+                hint = ""
+                if attempt > 1:
+                    hint = (
+                        f"\n\nIMPORTANT: Your previous response had an invalid or unrecognised op "
+                        f"type. You MUST use one of these exact type names: "
+                        f"{', '.join(sorted(OP_TYPES))}."
+                    )
+                prompt = _NORM_PROMPT.format(rule=rule_text.strip() + hint)
+                raw = llm_provider.generate(prompt, _NORM_SYSTEM)
+                raw = raw.strip()
+                if raw.startswith("```"):
+                    raw = re.sub(r"^```(?:json)?\s*", "", raw)
+                    raw = re.sub(r"\s*```$", "", raw.strip())
+                op = json.loads(raw)
+                if isinstance(op, dict) and op.get("type") in OP_TYPES:
+                    for k in ("n", "size"):
+                        if k in op:
+                            op[k] = int(op[k])
+                    return op
+                # Valid JSON but unrecognised op type — retry with hint
+                last_exc = ValueError(
+                    f"LLM returned unrecognised masking op type '{op.get('type')}'"
+                )
+                logger.debug("normalize_masking_rule attempt %d: %s", attempt, last_exc)
+            except (json.JSONDecodeError, ValueError, KeyError) as exc:
+                last_exc = exc
+                logger.debug("normalize_masking_rule attempt %d failed: %s", attempt, exc)
+            except Exception as exc:
+                # Network/API error — no point retrying
+                last_exc = exc
+                logger.debug("normalize_masking_rule LLM network error: %s", exc)
+                break
+
+        from services.llm_service import LLMUnavailableError
+        if not allow_fallback:
+            raise LLMUnavailableError(
+                f"Masking rule normalisation failed after retries: {last_exc}. "
+                "Enable rule-based fallback in Settings or check your LLM provider."
+            ) from last_exc
+        if warnings is not None:
+            warnings.append("Masking rule normalisation used keyword fallback — LLM call failed.")
 
     # ── Keyword fallback ──────────────────────────────────────────────────────
     return _keyword_normalize(rule_text)

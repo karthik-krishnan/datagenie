@@ -759,6 +759,51 @@ def detect_compliance_batch_llm(
             f"{', '.join(missing[:10])}{'…' if len(missing) > 10 else ''}."
         )
 
+    # ── Cross-check: validate LLM results against the field catalog ────────────
+    # For columns the LLM classified as NOT sensitive but the catalog definitively
+    # knows ARE sensitive, do one focused re-batch with a stronger prompt.
+    # If the re-batch still disagrees, we fall back to the catalog result — the
+    # catalog was purpose-built for these known-sensitive field names.
+    suspect_cols = [
+        col for col in columns
+        if col.get("name") in results
+        and not results[col["name"]].get("is_sensitive")
+        and detect_compliance(col["name"], [], domain_frameworks).get("is_sensitive")
+    ]
+
+    if suspect_cols:
+        suspect_names = [c["name"] for c in suspect_cols]
+        retry_prompt = (
+            _build_prompt(suspect_cols)
+            + (
+                "\n\nIMPORTANT: The following columns are known to be sensitive (PII/PCI/HIPAA/etc.) "
+                "based on their names. Your previous classification marked them as NOT sensitive, "
+                "which appears incorrect. Please reconsider carefully: "
+                + ", ".join(suspect_names)
+            )
+        )
+        try:
+            raw_xcheck = llm_provider.generate(retry_prompt, system_prompt=_COMPLIANCE_SYSTEM_PROMPT)
+            parsed_xcheck = _parse(raw_xcheck)
+            if parsed_xcheck:
+                for name in suspect_names:
+                    entry = parsed_xcheck.get(name)
+                    norm = _normalise_entry(name, entry) if entry else None
+                    if norm is not None and norm.get("is_sensitive"):
+                        # LLM now agrees — use updated result
+                        results[name] = norm
+                    else:
+                        # LLM still disagrees — trust the catalog
+                        results[name] = detect_compliance(name, [], domain_frameworks)
+            else:
+                # Unparseable response — trust the catalog for all suspects
+                for name in suspect_names:
+                    results[name] = detect_compliance(name, [], domain_frameworks)
+        except Exception:
+            # Error during cross-check — trust the catalog silently
+            for name in suspect_names:
+                results[name] = detect_compliance(name, [], domain_frameworks)
+
     return {"results": results, "warning": warning, "attempts": attempts}
 
 
