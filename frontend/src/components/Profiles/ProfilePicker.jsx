@@ -31,14 +31,6 @@ const DEMO_STARTERS = [
     frameworks: ["SOX", "PII", "GDPR"],
   },
   {
-    id: "demo-students",
-    title: "Student Records",
-    description: "Students → Enrollments. GPA, financial aid, and academic records under FERPA and PII.",
-    emoji: "🎓",
-    contextKeyword: "student gpa academic enrollment FERPA",
-    frameworks: ["FERPA", "PII", "GDPR"],
-  },
-  {
     id: "demo-banking",
     title: "Banking & Accounts",
     description: "Customers → Accounts → Transactions + Loans. PCI, GLBA, and SOX compliance.",
