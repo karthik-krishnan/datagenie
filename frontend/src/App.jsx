@@ -99,6 +99,7 @@ export default function App() {
     outputConfig, setOutputConfig,
     previewData, setPreviewData,
     isLoading, setLoading,
+    inferStatus, setInferStatus,
     error, setError,
     showSettings, setShowSettings,
     llmSettings,
@@ -188,6 +189,21 @@ export default function App() {
     }
     setError(null);
     setLoading(true);
+
+    // Progress messages — cycle through known backend steps with realistic timing
+    const INFER_STEPS = [
+      { msg: "Analysing your description…",               delay: 0 },
+      { msg: "Detecting domain and compliance frameworks…", delay: 1800 },
+      { msg: "Inferring schema columns and types…",        delay: 4500 },
+      { msg: "Classifying sensitive fields…",              delay: 8000 },
+      { msg: "Validating compliance rules…",               delay: 12000 },
+      { msg: "Finalising schema…",                         delay: 16000 },
+    ];
+    setInferStatus(INFER_STEPS[0].msg);
+    const timers = INFER_STEPS.slice(1).map(({ msg, delay }) =>
+      setTimeout(() => setInferStatus(msg), delay)
+    );
+
     try {
       const result = await api.inferSchema(uploadedFiles, contextText, sessionId);
 
@@ -207,6 +223,8 @@ export default function App() {
     } catch (e) {
       setError(e.message);
     } finally {
+      timers.forEach(clearTimeout);
+      setInferStatus(null);
       setLoading(false);
     }
   };
@@ -382,7 +400,7 @@ export default function App() {
 
               {/* Inline Infer Schema shortcut — visible right after editing context, no scrolling needed */}
               {inferredSchema && (
-                <div className="flex justify-end -mt-2">
+                <div className="flex flex-col items-end gap-1 -mt-2">
                   <button
                     onClick={runInfer}
                     disabled={isLoading || !hasChangedSinceInfer}
@@ -390,6 +408,12 @@ export default function App() {
                   >
                     {isLoading ? <Spinner /> : <><span className="text-base leading-none">↻</span> Infer Schema</>}
                   </button>
+                  {inferStatus && (
+                    <span className="flex items-center gap-1.5 text-xs text-indigo-500 animate-pulse">
+                      <Spinner />
+                      {inferStatus}
+                    </span>
+                  )}
                 </div>
               )}
 
@@ -483,6 +507,12 @@ export default function App() {
                 </div>
               )}
 
+              {inferStatus && (
+                <div className="flex items-center gap-2 text-sm text-indigo-600 animate-pulse mb-1">
+                  <Spinner />
+                  <span>{inferStatus}</span>
+                </div>
+              )}
               <div className="flex justify-end gap-2">
                 {!inferredSchema ? (
                   <button

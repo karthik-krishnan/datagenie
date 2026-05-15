@@ -44,6 +44,7 @@ export const useAppStore = create((set, get) => ({
   appSettings: getAppSettings(),
   previewData: null,
   isLoading: false,
+  inferStatus: null,   // progress message shown during schema inference
   error: null,
   showSettings: false,
   maxVolumeRecords: 10000,   // updated from /api/config on mount
@@ -55,6 +56,7 @@ export const useAppStore = create((set, get) => ({
   showProfilePicker: true,
   showSaveProfileModal: false,
 
+  setInferStatus: (msg) => set({ inferStatus: msg }),
   setStage: (n) => set({ currentStage: n }),
   setSessionId: (id) => set({ sessionId: id }),
   setUploadedFiles: (files) => set({ uploadedFiles: files }),
