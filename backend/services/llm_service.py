@@ -167,7 +167,9 @@ class AzureOpenAIProvider(LLMProvider):
 
 
 class AzureFoundryProvider(LLMProvider):
-    """Azure AI Foundry (Azure AI Inference SDK) — supports GPT, Llama, Mistral, Phi, etc."""
+    """Azure AI Foundry — supports GPT, Llama, Mistral, Phi via Azure AI Inference SDK,
+    and Claude models via the Anthropic SDK (which uses the Anthropic Messages API,
+    not the OpenAI-compatible Chat Completions API that other models use)."""
 
     def __init__(self, api_key: str, endpoint: str, model: str = ""):
         self.api_key = api_key
@@ -175,10 +177,20 @@ class AzureFoundryProvider(LLMProvider):
         self.endpoint = (endpoint or "").strip().rstrip("/")
         self.model = model or ""  # optional: some endpoints serve a single model
 
+    def _is_claude_model(self) -> bool:
+        return self.model.lower().startswith("claude")
+
     def generate(self, prompt: str, system_prompt: str = "") -> str:
         if not self.endpoint:
             return json.dumps({"error": "Azure AI Foundry endpoint is not configured. "
                                         "Set 'endpoint' in Settings → Extra Config."})
+
+        # Claude models on Azure AI Foundry use the Anthropic Messages API,
+        # not the OpenAI-compatible Chat Completions API used by GPT/Llama/etc.
+        # Routing to the Anthropic SDK avoids the "api_not_supported" error.
+        if self._is_claude_model():
+            return self._generate_claude(prompt, system_prompt)
+
         try:
             from azure.ai.inference import ChatCompletionsClient
             from azure.ai.inference.models import SystemMessage, UserMessage
@@ -198,6 +210,28 @@ class AzureFoundryProvider(LLMProvider):
                 kwargs["model"] = self.model
             resp = client.complete(**kwargs)
             return resp.choices[0].message.content or ""
+        except Exception as e:
+            cause = getattr(e, "__cause__", None) or getattr(e, "__context__", None)
+            detail = str(cause) if cause else str(e)
+            return json.dumps({"error": detail})
+
+    def _generate_claude(self, prompt: str, system_prompt: str = "") -> str:
+        """Route Claude models through the Anthropic SDK using the Foundry endpoint."""
+        try:
+            from anthropic import Anthropic
+            # Anthropic SDK expects a base_url ending with /; it appends /v1/messages etc.
+            base_url = self.endpoint + "/"
+            client = Anthropic(
+                base_url=base_url,
+                api_key=self.api_key,
+            )
+            msg = client.messages.create(
+                model=self.model,
+                max_tokens=4096,
+                system=system_prompt or "You generate realistic synthetic test data. Respond only with valid JSON.",
+                messages=[{"role": "user", "content": prompt}],
+            )
+            return msg.content[0].text
         except Exception as e:
             cause = getattr(e, "__cause__", None) or getattr(e, "__context__", None)
             detail = str(cause) if cause else str(e)

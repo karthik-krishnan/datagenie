@@ -215,9 +215,15 @@ export default function SettingsModal() {
                   <input
                     value={model}
                     onChange={(e) => setModel(e.target.value)}
-                    placeholder="e.g. gpt-4o, Llama-3.3-70B-Instruct"
+                    placeholder="e.g. gpt-4o, Llama-3.3-70B-Instruct, claude-opus-4-7"
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-indigo-500"
                   />
+                  {model.toLowerCase().startsWith("claude") && (
+                    <p className="mt-1.5 text-xs text-indigo-600 flex items-start gap-1">
+                      <span>ℹ️</span>
+                      <span>Claude models use the Anthropic Messages API automatically — the endpoint above is used as the base URL.</span>
+                    </p>
+                  )}
                 </div>
               </>
             )}
