@@ -46,6 +46,7 @@ export const useAppStore = create((set, get) => ({
   isLoading: false,
   error: null,
   showSettings: false,
+  maxVolumeRecords: 10000,   // updated from /api/config on mount
 
   // Profile state
   profileId: null,
@@ -129,6 +130,7 @@ export const useAppStore = create((set, get) => ({
       currentStage: goToStage,
     });
   },
+  setMaxVolumeRecords: (n) => set({ maxVolumeRecords: n }),
   setOutputConfig: (c) => set({ outputConfig: { ...get().outputConfig, ...c } }),
   setLLMSettings: (s) => { setLLMConfig(s); set({ llmSettings: s }); },
   setAppSettings: (s) => { setAppSettings(s); set({ appSettings: s }); },

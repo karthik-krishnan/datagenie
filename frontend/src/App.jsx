@@ -108,6 +108,7 @@ export default function App() {
     setShowSaveProfileModal,
     reset,
     applyInferResult,
+    maxVolumeRecords,
   } = useAppStore();
 
   const [schemaTab, setSchemaTab] = useState(0);
@@ -120,6 +121,14 @@ export default function App() {
       api.createSession().then((s) => setSessionId(s.session_id)).catch(() => {});
     }
   }, [sessionId, setSessionId]);
+
+  // Fetch server-side config once on mount (volume cap, etc.)
+  const { setMaxVolumeRecords } = useAppStore();
+  useEffect(() => {
+    api.getConfig()
+      .then((cfg) => { if (cfg?.max_volume_records) setMaxVolumeRecords(cfg.max_volume_records); })
+      .catch(() => {}); // silently keep the default on failure
+  }, []);
 
   // Reset schema tab when schema changes (e.g. re-infer or new template)
   useEffect(() => {
@@ -511,6 +520,7 @@ export default function App() {
                 relationships={relationships}
                 schema={inferredSchema}
                 perParentCounts={characteristics.per_parent_counts || {}}
+                maxVolume={maxVolumeRecords}
                 onChildCountChange={(childTable, spec) =>
                   setCharacteristics({
                     per_parent_counts: {
@@ -571,7 +581,11 @@ export default function App() {
 
               <div className="flex justify-between items-center">
                 <button onClick={() => setStage(prevStage(2))} className="inline-flex items-center h-10 px-5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-base font-medium">Back</button>
-                <button onClick={() => setStage(nextStage(2))} className="inline-flex items-center h-10 px-5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 text-base font-medium">Continue →</button>
+                <button
+                  onClick={() => setStage(nextStage(2))}
+                  disabled={(characteristics.volume || 0) > maxVolumeRecords}
+                  className="inline-flex items-center h-10 px-5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-base font-medium"
+                >Continue →</button>
               </div>
             </div>
           )}

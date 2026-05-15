@@ -42,6 +42,7 @@ export default function VolumeInput({
   schema = null,
   perParentCounts = {},
   onChildCountChange,
+  maxVolume = 10000,
 }) {
   // Derive one-to-many relationships (parent → child)
   const manyToOneRels = relationships.filter(
@@ -76,21 +77,31 @@ export default function VolumeInput({
             </span>
           )}
         </label>
-        <input
-          type="number"
-          min={1}
-          max={10000}
-          value={value || ""}
-          placeholder="e.g. 100"
-          onChange={(e) => {
-            const n = parseInt(e.target.value || "0", 10);
-            onChange(Math.min(n, 10000));
-          }}
-          className="w-48 border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-indigo-500"
-        />
-        {value > 9000 && (
+        <div className="flex items-center gap-3">
+          <input
+            type="number"
+            min={1}
+            max={maxVolume}
+            value={value || ""}
+            placeholder="e.g. 100"
+            onChange={(e) => {
+              const n = parseInt(e.target.value || "0", 10);
+              onChange(Math.min(n, maxVolume));
+            }}
+            className={`w-48 border rounded-lg px-3 py-2 outline-none focus:border-indigo-500 ${
+              value > maxVolume ? "border-red-400 bg-red-50" : "border-gray-300"
+            }`}
+          />
+          <span className="text-xs text-gray-400">max {maxVolume.toLocaleString()}</span>
+        </div>
+        {value > maxVolume * 0.9 && value <= maxVolume && (
           <p className="text-xs text-amber-600 mt-1">
-            Large volumes may take a few seconds to generate. Maximum is 10,000 root records.
+            Approaching the limit — large volumes may take a few seconds to generate.
+          </p>
+        )}
+        {value > maxVolume && (
+          <p className="text-xs text-red-600 mt-1 font-medium">
+            Exceeds the maximum of {maxVolume.toLocaleString()} records. Please reduce the volume.
           </p>
         )}
       </div>

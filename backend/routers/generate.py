@@ -1,11 +1,12 @@
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
 from services.data_generator import generate_data
 from services.output_formatter import format_output
+from app_config import MAX_VOLUME_RECORDS
 
 router = APIRouter()
 
@@ -37,6 +38,12 @@ async def preview(req: GenerateRequest, db: AsyncSession = Depends(get_db)):
 
 @router.post("/")
 async def generate_full(req: GenerateRequest, db: AsyncSession = Depends(get_db)):
+    if req.volume > MAX_VOLUME_RECORDS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Volume {req.volume:,} exceeds the maximum of {MAX_VOLUME_RECORDS:,} records. "
+                   f"Reduce the root-entity count and try again.",
+        )
     data = generate_data(
         schema=req.schema,
         characteristics=req.characteristics,

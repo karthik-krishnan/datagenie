@@ -40,6 +40,9 @@ async function fetchWithRetry(fn, retries = 2, delayMs = 2000) {
 }
 
 export const api = {
+  getConfig: () =>
+    fetchWithRetry(() => fetch(`${BASE}/config`).then(handle)),
+
   createSession: () =>
     fetchWithRetry(() => fetch(`${BASE}/sessions/`, { method: "POST" }).then(handle)),
 
