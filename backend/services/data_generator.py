@@ -532,6 +532,7 @@ def generate_data(
     relationships: List[Dict[str, Any]],
     volume: int = 100,
     preview: bool = False,
+    llm_settings: Dict[str, Any] = None,  # accepted for API compatibility; not used internally
 ) -> Dict[str, List[Dict[str, Any]]]:
 
     tables               = schema.get("tables", [])
@@ -592,6 +593,17 @@ def generate_data(
     fk_pools:    Dict[str, List[Any]] = {}
     # Seen-value sets for unique constraint enforcement (table.col → set of str)
     unique_seen: Dict[str, set] = {}
+
+    # Pre-build: which columns are referenced as PKs in relationships (by table).
+    # This ensures named PKs like patient_id, customer_id are cached, not just "id".
+    pk_col_names: Dict[str, set] = {}
+    for r in all_rels:
+        src, src_col = r.get("source_table", ""), r.get("source_column", "")
+        if src and src_col:
+            pk_col_names.setdefault(src, set()).add(src_col.lower())
+    # Always cache columns literally named "id" from any table
+    for tbl in tables:
+        pk_col_names.setdefault(tbl["table_name"], set()).add("id")
 
     for r in all_rels:
         card = r.get("cardinality", "one_to_many")
@@ -757,9 +769,12 @@ def generate_data(
 
                 row[cname] = val
 
-            # Cache PKs for FK resolution in child tables
+            # Cache PKs for FK resolution in child tables.
+            # Cache any column that is referenced as a source_column in a relationship
+            # (e.g. patient_id, customer_id) plus anything literally named "id".
+            table_pk_cols = pk_col_names.get(tname, {"id"})
             for col in cols:
-                if col["name"].lower() == "id":
+                if col["name"].lower() in table_pk_cols:
                     pk_cache.setdefault(f"{tname}.{col['name']}", []).append(row[col["name"]])
 
             rows.append(row)

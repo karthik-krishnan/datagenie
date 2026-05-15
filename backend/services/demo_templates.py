@@ -14,14 +14,114 @@ from typing import Any, Dict
 
 MULTI_TEMPLATES: Dict[str, Dict[str, Any]] = {
 
+    # ── Generic / default template ─────────────────────────────────────────────
+    # Shown when no domain keyword matches — looks like a freshly-inferred schema
+    # rather than a domain-specific one.  Organizations → Contacts → Interactions.
+    "generic": {
+        "keywords": [
+            "user", "person", "people", "member", "contact", "profile", "account",
+            "organization", "company", "business", "client", "record",
+            "generate", "test", "sample", "data", "dataset", "table",
+        ],
+        "entity_type": "organizations",
+        "volume": 50,
+        "per_parent_counts": {"contacts": 4, "interactions": 3},
+        "frameworks_detected": ["PII", "GDPR"],
+        "sensitive_detected": True,
+        "tables": [
+            {
+                "table_name": "organizations",
+                "columns": [
+                    {"name": "org_id",        "type": "string",  "sample_values": ["ORG-001", "ORG-002", "ORG-003"]},
+                    {"name": "name",          "type": "string",  "sample_values": ["Acme Corp", "Brightwave Ltd", "Novatek"]},
+                    {"name": "industry",      "type": "enum",    "sample_values": ["Technology", "Retail", "Healthcare"],
+                     "enum_values": ["Technology", "Retail", "Healthcare", "Finance", "Manufacturing", "Education", "Other"]},
+                    {"name": "size",          "type": "enum",    "sample_values": ["Mid-size", "Enterprise", "Startup"],
+                     "enum_values": ["Startup", "Small", "Mid-size", "Enterprise"]},
+                    {"name": "country",       "type": "string",  "sample_values": ["United States", "United Kingdom", "Canada"]},
+                    {"name": "city",          "type": "string",  "sample_values": ["Austin", "London", "Toronto"]},
+                    {"name": "status",        "type": "enum",    "sample_values": ["active", "inactive"],
+                     "enum_values": ["active", "inactive", "prospect"]},
+                    {"name": "created_date",  "type": "date",    "sample_values": ["2021-05-10", "2020-11-22"],
+                     "date_format": "YYYY-MM-DD"},
+                ],
+                "distributions": {
+                    "industry": {"Technology": 30, "Retail": 20, "Healthcare": 15, "Finance": 15, "Manufacturing": 10, "Education": 7, "Other": 3},
+                    "size":     {"Startup": 20, "Small": 30, "Mid-size": 35, "Enterprise": 15},
+                    "status":   {"active": 75, "inactive": 15, "prospect": 10},
+                },
+                "compliance_rules": {},
+            },
+            {
+                "table_name": "contacts",
+                "columns": [
+                    {"name": "contact_id",   "type": "string",  "sample_values": ["CON-1001", "CON-1002", "CON-1003"]},
+                    {"name": "org_id",       "type": "string",  "sample_values": ["ORG-001", "ORG-001", "ORG-002"]},
+                    {"name": "first_name",   "type": "string",  "sample_values": ["Sarah", "James", "Priya"]},
+                    {"name": "last_name",    "type": "string",  "sample_values": ["Kim", "Carter", "Sharma"]},
+                    {"name": "email",        "type": "email",   "sample_values": ["s.kim@acme.com", "j.carter@brightwave.com"]},
+                    {"name": "phone",        "type": "phone",   "sample_values": ["+1-555-0142", "+44-20-7946-0881"]},
+                    {"name": "job_title",    "type": "string",  "sample_values": ["VP Engineering", "Marketing Director", "CEO"]},
+                    {"name": "department",   "type": "enum",    "sample_values": ["Engineering", "Marketing", "Sales"],
+                     "enum_values": ["Engineering", "Marketing", "Sales", "Finance", "Operations", "HR"]},
+                    {"name": "created_at",   "type": "date",    "sample_values": ["2022-03-18", "2023-07-04"],
+                     "date_format": "YYYY-MM-DD"},
+                ],
+                "distributions": {
+                    "department": {"Engineering": 25, "Sales": 30, "Marketing": 20, "Finance": 10, "Operations": 10, "HR": 5},
+                },
+                "compliance_rules": {
+                    "email": {"action": "fake_realistic", "custom_rule": None, "frameworks": ["PII", "GDPR"]},
+                    "phone": {"action": "fake_realistic", "custom_rule": None, "frameworks": ["PII", "GDPR"]},
+                },
+            },
+            {
+                "table_name": "interactions",
+                "columns": [
+                    {"name": "interaction_id", "type": "integer", "sample_values": ["4001", "4002", "4003"]},
+                    {"name": "contact_id",     "type": "string",  "sample_values": ["CON-1001", "CON-1002", "CON-1001"]},
+                    {"name": "type",           "type": "enum",    "sample_values": ["email", "call", "meeting"],
+                     "enum_values": ["email", "call", "meeting", "demo", "follow-up"]},
+                    {"name": "date",           "type": "date",    "sample_values": ["2024-04-10", "2024-05-02"],
+                     "date_format": "YYYY-MM-DD"},
+                    {"name": "notes",          "type": "string",  "sample_values": ["Discussed Q2 roadmap", "Introduced new pricing"]},
+                    {"name": "outcome",        "type": "enum",    "sample_values": ["positive", "neutral", "follow-up required"],
+                     "enum_values": ["positive", "neutral", "follow-up required", "no response"]},
+                ],
+                "distributions": {
+                    "type":    {"email": 45, "call": 30, "meeting": 15, "demo": 7, "follow-up": 3},
+                    "outcome": {"positive": 40, "neutral": 35, "follow-up required": 20, "no response": 5},
+                },
+                "compliance_rules": {
+                    "notes": {"action": "fake_realistic", "custom_rule": None, "frameworks": ["GDPR"]},
+                },
+            },
+        ],
+        "relationships": [
+            {
+                "source_table": "organizations",
+                "source_column": "org_id",
+                "target_table": "contacts",
+                "target_column": "org_id",
+                "cardinality": "one_to_many",
+                "confidence": 0.95,
+            },
+            {
+                "source_table": "contacts",
+                "source_column": "contact_id",
+                "target_table": "interactions",
+                "target_column": "contact_id",
+                "cardinality": "one_to_many",
+                "confidence": 0.95,
+            },
+        ],
+    },
+
     "ecommerce": {
         "keywords": [
             "order", "purchase", "transaction", "invoice", "sale", "product",
             "ecommerce", "e-commerce", "checkout", "payment", "customer", "shop",
             "cart", "item", "line item", "catalogue",
-            # Also catch generic user/contact/profile queries — ecommerce is the
-            # best multi-table showcase for those concepts
-            "user", "person", "people", "member", "contact", "profile", "account",
         ],
         "entity_type": "customers",
         "volume": 50,          # number of customers
@@ -692,7 +792,7 @@ TEMPLATES: Dict[str, Dict[str, Any]] = {
     },
 }
 
-DEFAULT_TEMPLATE = "ecommerce"   # multi-table master-detail is the showcase default
+DEFAULT_TEMPLATE = "generic"   # neutral fallback — no domain assumed
 
 
 def pick_template(context_text: str) -> tuple:

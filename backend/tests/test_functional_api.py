@@ -157,6 +157,58 @@ class TestInferTextOnly:
         cols = [c["name"] for c in r.json()["tables"][0]["columns"]]
         assert len(cols) > 0, "Expected at least one column in text-only schema"
 
+    # ── Regression tests: demo mode must return real multi-table schema ─────────
+    # Bug: POST /api/schema/infer with no files in demo mode was going through the
+    # full LLM pipeline, which produced a useless single-table "records" schema
+    # because DemoProvider never calls an LLM and context extraction yields nothing.
+    # Fix: short-circuit to get_demo_schema() when no files + DemoProvider.
+
+    def test_demo_text_only_does_not_return_records_table(self):
+        """Demo mode must never fall back to a generic 'records' table name."""
+        r = _infer(context_text="generate some data")
+        body = r.json()
+        table_names = [t["table_name"] for t in body["tables"]]
+        assert "records" not in table_names, (
+            f"Demo /infer returned a generic 'records' table — "
+            f"should have short-circuited to get_demo_schema(). Tables: {table_names}"
+        )
+
+    def test_demo_text_only_returns_multi_table_schema(self):
+        """Demo mode text-only should return the canned multi-table template (>=2 tables)."""
+        r = _infer(context_text="")
+        body = r.json()
+        assert len(body["tables"]) >= 2, (
+            f"Demo /infer returned only {len(body['tables'])} table(s) — "
+            f"expected multi-table master-detail schema"
+        )
+
+    def test_demo_text_only_has_relationships(self):
+        """Demo multi-table schema must include at least one relationship."""
+        r = _infer(context_text="")
+        body = r.json()
+        assert len(body.get("relationships", [])) >= 1, (
+            "Demo /infer returned no relationships — expected FK relationships in demo schema"
+        )
+
+    def test_demo_text_only_keyword_selects_matching_template(self):
+        """Healthcare keyword should return the healthcare multi-table template."""
+        r = _infer(context_text="patient records for a hospital")
+        body = r.json()
+        table_names = [t["table_name"] for t in body["tables"]]
+        # Healthcare template has patients, visits, prescriptions
+        assert any("patient" in n for n in table_names), (
+            f"Expected healthcare template tables, got: {table_names}"
+        )
+
+    def test_demo_empty_context_returns_generic_template(self):
+        """Empty/blank context → generic (organizations/contacts/interactions) template, not ecommerce."""
+        r = _infer(context_text="")
+        body = r.json()
+        table_names = {t["table_name"] for t in body["tables"]}
+        assert "organizations" in table_names, (
+            f"Empty context should return generic template, got: {table_names}"
+        )
+
 
 # ─── Req 1: Both file + context text ─────────────────────────────────────────
 

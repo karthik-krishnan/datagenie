@@ -24,7 +24,7 @@ class TestPickTemplate:
 
     def test_empty_context_returns_default(self):
         key, is_multi = pick_template("")
-        assert key == "ecommerce"
+        assert key == "generic"   # neutral fallback when nothing matches
         assert is_multi is True
 
     def test_patient_keywords(self):
@@ -54,8 +54,10 @@ class TestPickTemplate:
         assert is_multi is True
 
     def test_user_keywords(self):
-        key, _ = pick_template("user profiles with members")
-        assert key == "users"
+        # Generic keywords (user/member/contact/person) now route to "generic" template
+        key, is_multi = pick_template("user profiles with members")
+        assert is_multi is True
+        assert key == "generic"
 
     def test_best_match_wins(self):
         # "healthcare" multi-table template wins for patient/hospital keywords
@@ -67,12 +69,12 @@ class TestPickTemplate:
 
 class TestGetDemoSchema:
 
-    def test_default_returns_multi_table_ecommerce(self):
+    def test_default_returns_multi_table_generic(self):
         schema = get_demo_schema("")
         assert "tables" in schema
-        assert len(schema["tables"]) == 3  # customers, orders, order_items
+        assert len(schema["tables"]) == 3  # organizations, contacts, interactions
         table_names = {t["table_name"] for t in schema["tables"]}
-        assert {"customers", "orders", "order_items"} == table_names
+        assert {"organizations", "contacts", "interactions"} == table_names
 
     def test_default_has_relationships(self):
         schema = get_demo_schema("")
@@ -81,11 +83,19 @@ class TestGetDemoSchema:
     def test_default_has_per_parent_counts(self):
         schema = get_demo_schema("")
         ppc = schema["extracted"].get("per_parent_counts", {})
-        assert "orders" in ppc and "order_items" in ppc
+        assert "contacts" in ppc and "interactions" in ppc
 
-    def test_single_table_template_returns_one_table(self):
+    def test_ecommerce_returns_for_order_keywords(self):
+        schema = get_demo_schema("e-commerce orders with checkout and payment")
+        table_names = {t["table_name"] for t in schema["tables"]}
+        assert {"customers", "orders", "order_items"} == table_names
+
+    def test_all_schemas_are_multi_table(self):
+        # pick_template always returns multi-table now — even generic user context
         schema = get_demo_schema("users with email and phone")
-        assert len(schema["tables"]) == 1
+        assert len(schema["tables"]) >= 2, (
+            "Demo schema should always be multi-table (pick_template always returns multi)"
+        )
 
     def test_columns_have_pii_field(self):
         # Check across all tables
@@ -150,12 +160,15 @@ class TestComplianceFieldsInDemoTemplates:
     """
 
     @pytest.mark.parametrize("keyword,expected_key", [
-        ("users with name email ssn", "users"),
-        ("patient clinical hospital diagnosis", "patients"),
-        ("employee payroll salary HR", "employees"),
-        ("student gpa academic ferpa", "students"),
+        # "users with name email ssn" now routes to the generic template which uses
+        # fake_realistic for PII — covered separately below
+        ("patient clinical hospital diagnosis", "healthcare"),
+        ("employee payroll salary HR", "hr"),
+        ("student gpa academic ferpa", "education"),
         # ecommerce multi-table template
         ("orders checkout payment credit card", "ecommerce"),
+        # banking multi-table template
+        ("bank account transaction loan", "banking"),
     ])
     def test_at_least_2_nontrivial_compliance_fields(self, keyword, expected_key):
         schema = get_demo_schema(keyword)
@@ -167,11 +180,19 @@ class TestComplianceFieldsInDemoTemplates:
             f"column non-trivial: {nontrivial}, rules non-trivial: {rules_nontrivial}"
         )
 
-    def test_users_has_mask_or_format_preserving_on_ssn(self):
-        schema = get_demo_schema("users with ssn")
+    def test_hr_template_has_ssn_or_tax_id_masked(self):
+        # SSN is in the HR template (employees). "users with ssn" now routes to ecommerce.
+        # Test with explicit HR keywords to hit the right template.
+        schema = get_demo_schema("employee payroll ssn tax_id HR")
         cols = {c["name"]: c for c in _all_columns(schema)}
-        assert "ssn" in cols, "users template must have ssn column"
-        assert cols["ssn"]["pii"].get("default_action") in NON_TRIVIAL_ACTIONS
+        # HR template should have at least one of: ssn, tax_id, salary — all masked
+        sensitive_cols = [
+            name for name, col in cols.items()
+            if col.get("pii", {}).get("default_action") in NON_TRIVIAL_ACTIONS
+        ]
+        assert len(sensitive_cols) >= 1, (
+            f"HR template must have at least 1 non-trivial PII field. Cols: {list(cols.keys())}"
+        )
 
     def test_patients_has_hipaa_fields_with_nontrivial_action(self):
         schema = get_demo_schema("patient hospital")

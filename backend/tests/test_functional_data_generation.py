@@ -466,3 +466,173 @@ class TestVolumeScaling:
                              volume=5, llm_settings=DEMO_SETTINGS, preview=True)
         assert len(data["users"])  == 5
         assert len(data["orders"]) == 5
+
+
+# ─── Named PK FK integrity (regression for pk_cache bug) ──────────────────────
+# Bug: data_generator.py only cached columns literally named "id" in pk_cache,
+# so named PKs like patient_id, customer_id were never stored → child FK lookup
+# always returned [] → child rows got random values that never matched any parent.
+
+class TestNamedPkFkIntegrity:
+    """FK integrity when the parent PK column is NOT literally named 'id'."""
+
+    def _schema_patients_visits(self):
+        """patients.patient_id (PK) → visits.patient_id (FK)"""
+        return {
+            "tables": [
+                {
+                    "table_name": "patients",
+                    "filename": "patients.csv",
+                    "row_count": 5,
+                    "columns": [
+                        _col("patient_id", "integer"),
+                        _col("name"),
+                        _col("dob", "date"),
+                    ],
+                },
+                {
+                    "table_name": "visits",
+                    "filename": "visits.csv",
+                    "row_count": 5,
+                    "columns": [
+                        _col("visit_id", "integer"),
+                        _col("patient_id", "integer"),
+                        _col("diagnosis"),
+                    ],
+                },
+            ],
+            "relationships": [],
+        }
+
+    def _rels_patients_visits(self):
+        return [{
+            "source_table":  "patients",
+            "source_column": "patient_id",
+            "target_table":  "visits",
+            "target_column": "patient_id",
+            "cardinality":   "one_to_many",
+            "confidence":    0.9,
+        }]
+
+    def test_named_pk_fk_integrity_patients_visits(self):
+        """visits.patient_id must reference a real patients.patient_id value."""
+        schema = self._schema_patients_visits()
+        data = generate_data(schema, {}, {}, self._rels_patients_visits(),
+                             volume=5, llm_settings=DEMO_SETTINGS)
+        patient_ids = {r["patient_id"] for r in data["patients"]}
+        for visit in data["visits"]:
+            assert visit["patient_id"] in patient_ids, (
+                f"visits.patient_id={visit['patient_id']} not in "
+                f"patients.patient_id set {patient_ids}"
+            )
+
+    def test_named_pk_fk_integrity_customers_orders(self):
+        """customer_id as PK — the common e-commerce case."""
+        schema = {
+            "tables": [
+                {
+                    "table_name": "customers",
+                    "filename": "customers.csv",
+                    "row_count": 5,
+                    "columns": [
+                        _col("customer_id", "integer"),
+                        _col("email", "email"),
+                    ],
+                },
+                {
+                    "table_name": "orders",
+                    "filename": "orders.csv",
+                    "row_count": 5,
+                    "columns": [
+                        _col("order_id", "integer"),
+                        _col("customer_id", "integer"),
+                        _col("total", "float"),
+                    ],
+                },
+            ],
+            "relationships": [],
+        }
+        rels = [{
+            "source_table":  "customers",
+            "source_column": "customer_id",
+            "target_table":  "orders",
+            "target_column": "customer_id",
+            "cardinality":   "one_to_many",
+            "confidence":    0.9,
+        }]
+        data = generate_data(schema, {}, {}, rels, volume=8, llm_settings=DEMO_SETTINGS)
+        customer_ids = {r["customer_id"] for r in data["customers"]}
+        for order in data["orders"]:
+            assert order["customer_id"] in customer_ids, (
+                f"orders.customer_id={order['customer_id']} not in "
+                f"customers.customer_id set {customer_ids}"
+            )
+
+    def test_named_pk_three_hop_chain(self):
+        """
+        Three-table chain with named PKs throughout:
+          patients.patient_id → visits.patient_id
+          visits.visit_id     → prescriptions.visit_id
+        """
+        schema = {
+            "tables": [
+                {
+                    "table_name": "patients",
+                    "filename": "patients.csv",
+                    "row_count": 5,
+                    "columns": [_col("patient_id", "integer"), _col("name")],
+                },
+                {
+                    "table_name": "visits",
+                    "filename": "visits.csv",
+                    "row_count": 5,
+                    "columns": [
+                        _col("visit_id", "integer"),
+                        _col("patient_id", "integer"),
+                        _col("diagnosis"),
+                    ],
+                },
+                {
+                    "table_name": "prescriptions",
+                    "filename": "prescriptions.csv",
+                    "row_count": 5,
+                    "columns": [
+                        _col("rx_id", "integer"),
+                        _col("visit_id", "integer"),
+                        _col("drug"),
+                    ],
+                },
+            ],
+            "relationships": [],
+        }
+        rels = [
+            {
+                "source_table":  "patients",
+                "source_column": "patient_id",
+                "target_table":  "visits",
+                "target_column": "patient_id",
+                "cardinality":   "one_to_many",
+                "confidence":    0.9,
+            },
+            {
+                "source_table":  "visits",
+                "source_column": "visit_id",
+                "target_table":  "prescriptions",
+                "target_column": "visit_id",
+                "cardinality":   "one_to_many",
+                "confidence":    0.9,
+            },
+        ]
+        data = generate_data(schema, {}, {}, rels, volume=5, llm_settings=DEMO_SETTINGS)
+
+        patient_ids = {r["patient_id"] for r in data["patients"]}
+        for visit in data["visits"]:
+            assert visit["patient_id"] in patient_ids, (
+                f"visits.patient_id={visit['patient_id']} not in {patient_ids}"
+            )
+
+        visit_ids = {r["visit_id"] for r in data["visits"]}
+        for rx in data["prescriptions"]:
+            assert rx["visit_id"] in visit_ids, (
+                f"prescriptions.visit_id={rx['visit_id']} not in {visit_ids}"
+            )
