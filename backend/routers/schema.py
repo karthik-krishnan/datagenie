@@ -16,7 +16,7 @@ from services.compliance_detector import (
     FRAMEWORK_RECOMMENDATIONS,
 )
 from services.context_extractor import extract_from_context
-from services.llm_service import get_provider, LLMUnavailableError
+from services.llm_service import get_provider
 from services.masking import normalize_masking_rule
 
 router = APIRouter()
@@ -72,9 +72,6 @@ async def infer(
     llm_api_key   = form.get("llm_api_key", "")
     llm_model     = form.get("llm_model", "")
     llm_extra_config = form.get("llm_extra_config", "{}")
-    # allow_fallback: if "false" (string from FormData), strict mode — no silent rule-based fallback
-    _allow_fb_raw = (form.get("allow_fallback") or "true").lower()
-    allow_fallback = _allow_fb_raw != "false"
 
     # Build override dict from request params if provided
     llm_override = None
@@ -136,7 +133,6 @@ async def infer(
     # --- Validate provider config early — surface clear errors for misconfigured providers ---
     from services.llm_service import AzureOpenAIProvider
     llm_warning: str | None = None
-    llm_warnings: list = []   # collects non-fatal fallback notices
     if isinstance(llm_provider_obj, AzureOpenAIProvider):
         if not llm_provider_obj.endpoint:
             llm_warning = ("Azure OpenAI endpoint is not configured. "
@@ -150,7 +146,6 @@ async def infer(
         # --- Detect domain frameworks from the context text first ---
         domain_frameworks = detect_domain_frameworks(
             context_text, llm_provider_obj,
-            allow_fallback=allow_fallback, warnings=llm_warnings,
         )
 
         sensitive_detected = False
@@ -164,7 +159,6 @@ async def infer(
             # --- CONTEXT-ONLY: LLM does everything — no regex, no infer_schema ---
             extracted = extract_from_context(
                 context_text, llm_provider_obj,
-                allow_fallback=allow_fallback, warnings=llm_warnings,
             )
 
             def _build_cols_with_compliance(columns, compliance_rules):
@@ -173,11 +167,8 @@ async def infer(
                 col_dicts = [{"name": c.get("name", ""), "sample_values": []} for c in columns if c.get("name")]
                 batch = detect_compliance_batch_llm(
                     col_dicts, llm_provider_obj, context_text, domain_frameworks,
-                    allow_fallback=allow_fallback,
                 )
                 llm_comp = batch["results"]
-                if batch["warning"]:
-                    llm_warnings.append(batch["warning"])
                 cols = []
                 for c in columns:
                     name = c.get("name", "")
@@ -266,7 +257,6 @@ async def infer(
             ]
             llm_batch = detect_compliance_batch_llm(
                 all_cols_for_llm, llm_provider_obj, context_text, domain_frameworks,
-                allow_fallback=allow_fallback,
             )
             llm_compliance = llm_batch["results"]
             if llm_batch["warning"] and not llm_warning:
@@ -295,7 +285,6 @@ async def infer(
                 )
             extracted = extract_from_context(
                 combined_context or context_text, llm_provider_obj,
-                allow_fallback=allow_fallback, warnings=llm_warnings,
             )
 
             # Merge any compliance rules the LLM identified from the context text
@@ -315,12 +304,10 @@ async def infer(
         schema["domain_frameworks"] = sorted(domain_frameworks)
         schema["context"] = context_text
         schema["extracted"] = extracted
-        # Combine any Azure config warning with collected fallback notices
-        combined_warning = "; ".join(filter(None, [llm_warning] + llm_warnings)) or None
-        schema["llm_warning"] = combined_warning
+        schema["llm_warning"] = llm_warning or None
 
-    except LLMUnavailableError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
     try:
         await db.commit()

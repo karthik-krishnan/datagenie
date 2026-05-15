@@ -1,4 +1,4 @@
-import { getLLMConfig, getAppSettings } from "../utils/llmStorage.js";
+import { getLLMConfig } from "../utils/llmStorage.js";
 
 // In Docker / local dev: relative /api (proxied by nginx → backend container).
 // In static-site deployments (Vercel, Netlify, etc.): set VITE_API_URL to the
@@ -58,10 +58,6 @@ export const api = {
     fd.append("llm_api_key", llm.api_key || "");
     fd.append("llm_model", llm.model || "");
     fd.append("llm_extra_config", JSON.stringify(llm.extra_config || {}));
-
-    // Pass rule-based fallback setting so backend enforces strict vs permissive mode
-    const appSettings = getAppSettings();
-    fd.append("allow_fallback", appSettings.ruleBasedFallbackEnabled ? "true" : "false");
 
     return fetch(`${BASE}/schema/infer`, { method: "POST", body: fd }).then(handle);
   },

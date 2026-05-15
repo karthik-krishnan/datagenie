@@ -230,19 +230,13 @@ def _regex_fallback(context: str) -> Dict[str, Any]:
 def extract_from_context(
     context_text: str,
     llm_provider=None,
-    allow_fallback: bool = True,
-    warnings: list = None,
 ) -> Dict[str, Any]:
     """
-    Main entry point. Uses LLM if available.
+    Main entry point. Uses LLM if available (provider makes external API calls).
 
-    allow_fallback: if True (default) and the LLM call fails, fall back to
-      regex heuristics and append a notice to `warnings` (if provided).
-      If False and the LLM call fails, raises LLMUnavailableError — the
-      caller is responsible for surfacing this to the user.
+    For demo/local providers (no external API calls), uses _regex_fallback directly.
+    If the LLM call fails, the exception is raised directly — no silent fallback.
     """
-    from services.llm_service import LLMUnavailableError
-
     if not context_text.strip():
         return {
             "volume": None, "entity_type": "records", "columns": [],
@@ -251,47 +245,39 @@ def extract_from_context(
 
     # Try LLM first (skip for local/demo providers — go straight to regex)
     if llm_provider is not None and getattr(llm_provider, "sends_data_to_external_api", True):
-        try:
-            # Truncate context to avoid hitting provider token limits.
-            # Context extraction only needs the user's description, not file rows.
-            truncated = context_text.strip()[:4000]
-            prompt = EXTRACTION_PROMPT.format(context=truncated)
-            raw = llm_provider.generate(prompt, EXTRACTION_SYSTEM)
-            # Strip markdown code fences if present
-            raw = raw.strip()
-            if raw.startswith("```"):
-                raw = re.sub(r"^```(?:json)?\s*", "", raw)
-                raw = re.sub(r"\s*```$", "", raw)
-            parsed = json.loads(raw)
-            # Discard if the LLM returned an error object (e.g. from Azure config issues)
-            if "error" in parsed and len(parsed) == 1:
-                raise ValueError(f"LLM returned error: {parsed['error']}")
-            # Ensure required keys exist
-            parsed.setdefault("volume", None)
-            parsed.setdefault("columns", [])
-            parsed.setdefault("tables", [])
-            parsed.setdefault("relationships", [])
-            parsed.setdefault("distributions", {})
-            parsed.setdefault("compliance_rules", {})
-            parsed.setdefault("temporal", {})
-            # Normalise entity_type — some LLMs return the string "null" or None
-            raw_et = parsed.get("entity_type")
-            if not raw_et or str(raw_et).strip().lower() in ("null", "none", ""):
-                parsed["entity_type"] = "records"
-            else:
-                parsed["entity_type"] = str(raw_et).strip()
-            # Normalise any custom masking rules → structured masking_op
-            _normalise_compliance_rules(parsed["compliance_rules"], llm_provider)
-            return parsed
-        except Exception as exc:
-            if not allow_fallback:
-                raise LLMUnavailableError(
-                    f"Context extraction failed: {exc}. "
-                    "Enable rule-based fallback in Settings or check your LLM provider."
-                ) from exc
-            if warnings is not None:
-                warnings.append("Schema extraction used rule-based fallback — LLM call failed.")
+        # Truncate context to avoid hitting provider token limits.
+        # Context extraction only needs the user's description, not file rows.
+        truncated = context_text.strip()[:4000]
+        prompt = EXTRACTION_PROMPT.format(context=truncated)
+        raw = llm_provider.generate(prompt, EXTRACTION_SYSTEM)
+        # Strip markdown code fences if present
+        raw = raw.strip()
+        if raw.startswith("```"):
+            raw = re.sub(r"^```(?:json)?\s*", "", raw)
+            raw = re.sub(r"\s*```$", "", raw)
+        parsed = json.loads(raw)
+        # Discard if the LLM returned an error object (e.g. from Azure config issues)
+        if "error" in parsed and len(parsed) == 1:
+            raise ValueError(f"LLM returned error: {parsed['error']}")
+        # Ensure required keys exist
+        parsed.setdefault("volume", None)
+        parsed.setdefault("columns", [])
+        parsed.setdefault("tables", [])
+        parsed.setdefault("relationships", [])
+        parsed.setdefault("distributions", {})
+        parsed.setdefault("compliance_rules", {})
+        parsed.setdefault("temporal", {})
+        # Normalise entity_type — some LLMs return the string "null" or None
+        raw_et = parsed.get("entity_type")
+        if not raw_et or str(raw_et).strip().lower() in ("null", "none", ""):
+            parsed["entity_type"] = "records"
+        else:
+            parsed["entity_type"] = str(raw_et).strip()
+        # Normalise any custom masking rules → structured masking_op
+        _normalise_compliance_rules(parsed["compliance_rules"], llm_provider)
+        return parsed
 
+    # Demo/local provider — use regex fallback directly (intended behaviour)
     result = _regex_fallback(context_text)
     # Normalise any custom masking rules from the regex fallback too
     _normalise_compliance_rules(result.get("compliance_rules", {}), llm_provider)

@@ -80,7 +80,6 @@ const APP_SETTINGS_KEY = "datagenie_settings";
 
 const DEFAULT_APP_SETTINGS = {
   complianceEnabled: true,
-  ruleBasedFallbackEnabled: false,
 };
 
 export function getAppSettings() {

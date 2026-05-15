@@ -89,37 +89,27 @@ from prompts.compliance_domain import SYSTEM as _DOMAIN_FRAMEWORK_SYSTEM, TEMPLA
 def detect_domain_frameworks(
     context_text: str,
     llm_provider=None,
-    allow_fallback: bool = True,
-    warnings: list = None,
 ) -> Set[str]:
-    """Return set of frameworks implied by context. Uses LLM when available."""
-    from services.llm_service import LLMUnavailableError
+    """Return set of frameworks implied by context. Uses LLM when available.
 
+    For demo/local providers (no external API calls), uses keyword matching directly.
+    If the LLM call fails, the exception is raised directly — no silent fallback.
+    """
     if not context_text:
         return set()
     # Skip LLM call for providers that don't make external API calls — use keyword
     # matching directly. Same result, no overhead (and no spurious delay in demo mode).
     if llm_provider is None or not getattr(llm_provider, "sends_data_to_external_api", True):
         return _keyword_domain_frameworks(context_text)
-    try:
-        import re as _re, json as _json
-        prompt = _DOMAIN_FRAMEWORK_PROMPT.format(context=context_text.strip()[:2000])
-        raw = llm_provider.generate(prompt, _DOMAIN_FRAMEWORK_SYSTEM)
-        raw = raw.strip()
-        if raw.startswith("```"):
-            raw = _re.sub(r"^```(?:json)?\s*", "", raw)
-            raw = _re.sub(r"\s*```$", "", raw)
-        result = _json.loads(raw)
-        return set(result.get("frameworks", []))
-    except Exception as exc:
-        if not allow_fallback:
-            raise LLMUnavailableError(
-                f"Domain framework detection failed: {exc}. "
-                "Enable rule-based fallback in Settings or check your LLM provider."
-            ) from exc
-        if warnings is not None:
-            warnings.append("Domain framework detection used rule-based fallback — LLM call failed.")
-        return _keyword_domain_frameworks(context_text)
+    import re as _re, json as _json
+    prompt = _DOMAIN_FRAMEWORK_PROMPT.format(context=context_text.strip()[:2000])
+    raw = llm_provider.generate(prompt, _DOMAIN_FRAMEWORK_SYSTEM)
+    raw = raw.strip()
+    if raw.startswith("```"):
+        raw = _re.sub(r"^```(?:json)?\s*", "", raw)
+        raw = _re.sub(r"\s*```$", "", raw)
+    result = _json.loads(raw)
+    return set(result.get("frameworks", []))
 
 
 # ---------------------------------------------------------------------------
@@ -575,7 +565,6 @@ def detect_compliance_batch_llm(
     context_text: str = "",
     domain_frameworks: Optional[Set[str]] = None,
     max_retries: int = 3,
-    allow_fallback: bool = True,
 ) -> Dict[str, Any]:
     """
     Classify all columns in a single LLM call, with validation + retry.
@@ -596,6 +585,7 @@ def detect_compliance_batch_llm(
         "attempts": int         — number of LLM calls made,
     }
     Caller falls back to detect_compliance() for any column absent from results["results"].
+    If the LLM call fails (network/API error), the exception is raised directly.
     """
     _empty = {"results": {}, "warning": None, "attempts": 0}
 
@@ -705,31 +695,12 @@ def detect_compliance_batch_llm(
             remaining_cols,
             missing=(missing if attempt > 1 else None),
         )
-        try:
-            raw = llm_provider.generate(prompt, system_prompt=_COMPLIANCE_SYSTEM_PROMPT)
-        except Exception as exc:
-            from services.llm_service import LLMUnavailableError
-            if not allow_fallback:
-                raise LLMUnavailableError(
-                    f"Compliance detection failed: {exc}. "
-                    "Enable rule-based fallback in Settings or check your LLM provider."
-                ) from exc
-            warning = (
-                "LLM compliance detection failed (network/API error). "
-                "Built-in rules were used instead."
-            )
-            break
+        raw = llm_provider.generate(prompt, system_prompt=_COMPLIANCE_SYSTEM_PROMPT)
 
         parsed = _parse(raw)
 
         # If the provider returned an error JSON from us (e.g. bad Azure config)
         if parsed and "error" in parsed and len(parsed) == 1:
-            from services.llm_service import LLMUnavailableError
-            if not allow_fallback:
-                raise LLMUnavailableError(
-                    f"Compliance detection error: {parsed['error']}. "
-                    "Enable rule-based fallback in Settings or check your LLM provider."
-                )
             warning = (
                 f"LLM compliance detection error: {parsed['error']} "
                 "Built-in rules were used instead."

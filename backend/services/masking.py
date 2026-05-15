@@ -51,160 +51,22 @@ OP_TYPES = {
 from prompts.masking_normalize import SYSTEM as _NORM_SYSTEM, TEMPLATE as _NORM_PROMPT
 
 
-# ─── Keyword-based fallback (no LLM required) ────────────────────────────────
-def _keyword_normalize(rule: str) -> Optional[Dict[str, Any]]:
-    """Best-effort keyword matching when LLM is unavailable."""
-    t = rule.lower().strip()
-
-    # ── "except" patterns — must be checked BEFORE generic mask/hide ──────────
-    # "mask everything except last N char(s)" → show_last_n_chars
-    m = re.search(
-        r"except\s+(?:the\s+)?last\s+(\d+)\s+chars?"
-        r"|except\s+(?:the\s+)?last\s+char(?:acter)?\b"
-        r"|all\s+except\s+(?:the\s+)?last\s+(\d+)\s+chars?"
-        r"|all\s+except\s+(?:the\s+)?last\s+char(?:acter)?\b",
-        t,
-    )
-    if m:
-        n = int(m.group(1) or m.group(2) or 1) if (m.group(1) or m.group(2)) else 1
-        return {"type": "show_last_n_chars", "n": n}
-
-    # "mask everything except last N digit(s)" → show_last_n_digits
-    m = re.search(
-        r"except\s+(?:the\s+)?last\s+(\d+)\s+digits?"
-        r"|except\s+(?:the\s+)?last\s+digit\b",
-        t,
-    )
-    if m:
-        n = int(m.group(1)) if m.group(1) else 1
-        return {"type": "show_last_n_digits", "n": n}
-
-    # "mask everything except first N char(s)" → show_first_n_chars
-    m = re.search(
-        r"except\s+(?:the\s+)?first\s+(\d+)\s+chars?"
-        r"|except\s+(?:the\s+)?first\s+char(?:acter)?\b",
-        t,
-    )
-    if m:
-        n = int(m.group(1)) if m.group(1) else 1
-        return {"type": "show_first_n_chars", "n": n}
-
-    # ── digit-specific ops ────────────────────────────────────────────────────
-    # "mask last N digit(s)" / "hide last digit"
-    m = re.search(r"(?:mask|hide)\s+(?:only\s+)?(?:the\s+)?last\s+(\d+)\s+digits?", t)
-    if m:
-        return {"type": "mask_last_n_digits", "n": int(m.group(1))}
-    if re.search(r"(?:mask|hide)\s+(?:only\s+)?(?:the\s+)?last\s+digit\b", t):
-        return {"type": "mask_last_n_digits", "n": 1}
-
-    # "show/keep last N digit(s)" / "last N digits visible"
-    m = re.search(
-        r"(?:show|keep|visible|reveal)\s+(?:only\s+)?(?:the\s+)?last\s+(\d+)\s+digits?"
-        r"|last\s+(\d+)\s+digits?\s+(?:visible|only|shown?)"
-        r"|only\s+last\s+(\d+)\s+digits?",
-        t,
-    )
-    if m:
-        n = int(next(g for g in m.groups() if g is not None))
-        return {"type": "show_last_n_digits", "n": n}
-    # bare "last N digits" (credit-card convention)
-    m = re.search(r"\blast\s+(\d+)\s+digits?\b", t)
-    if m:
-        return {"type": "show_last_n_digits", "n": int(m.group(1))}
-    if re.search(r"\blast\s+digit\b", t) and "char" not in t:
-        return {"type": "show_last_n_digits", "n": 1}
-
-    # "show first N digit(s)"
-    m = re.search(
-        r"(?:show|keep|visible)\s+(?:the\s+)?first\s+(\d+)\s+digits?"
-        r"|first\s+(\d+)\s+digits?\s+(?:visible|only)",
-        t,
-    )
-    if m:
-        n = int(next(g for g in m.groups() if g is not None))
-        return {"type": "show_first_n_digits", "n": n}
-
-    # ── character-level ops ───────────────────────────────────────────────────
-    # "show/keep last N char(s)"
-    m = re.search(
-        r"(?:show|keep|reveal|visible)\s+(?:only\s+)?(?:the\s+)?last\s+(\d+)\s+chars?"
-        r"|(?:show|keep|reveal|visible)\s+(?:only\s+)?(?:the\s+)?last\s+char(?:acter)?\b"
-        r"|last\s+(\d+)\s+chars?\s+(?:visible|only|shown?)"
-        r"|only\s+last\s+(\d+)\s+chars?",
-        t,
-    )
-    if m:
-        raw_n = m.group(1) or m.group(2) or m.group(3)
-        n = int(raw_n) if raw_n else 1
-        return {"type": "show_last_n_chars", "n": n}
-
-    # "mask last N char(s)"
-    m = re.search(
-        r"(?:mask|hide)\s+(?:the\s+)?last\s+(\d+)\s+chars?"
-        r"|(?:mask|hide)\s+(?:the\s+)?last\s+char(?:acter)?\b",
-        t,
-    )
-    if m:
-        n = int(m.group(1)) if m.group(1) else 1
-        return {"type": "mask_last_n_chars", "n": n}
-
-    # "show/keep first N char(s)"
-    m = re.search(r"(?:show|keep)\s+(?:the\s+)?first\s+(\d+)\s+chars?", t)
-    if m:
-        return {"type": "show_first_n_chars", "n": int(m.group(1))}
-
-    # "mask first N char(s)"
-    m = re.search(r"mask\s+(?:the\s+)?first\s+(\d+)\s+chars?", t)
-    if m:
-        return {"type": "mask_first_n_chars", "n": int(m.group(1))}
-
-    # ── other ops ─────────────────────────────────────────────────────────────
-    if re.search(r"\bemail\b", t):
-        return {"type": "partial_email"}
-
-    if re.search(r"\byear\b", t):
-        return {"type": "date_year_only"}
-
-    m = re.search(r"(?:range|bucket)", t)
-    if m:
-        size_m = re.search(r"(\d+)\s*[-–]\s*year|(\d+)\s*bucket", t)
-        size = int(size_m.group(1) or size_m.group(2)) if size_m else 10
-        return {"type": "range_bucket", "size": size}
-
-    if re.search(r"\bredact\b|\bremove\b|\bblank\b", t):
-        return {"type": "redact"}
-
-    if re.search(
-        r"format.?preserv|keep.{0,10}format|preserv.{0,5}format"
-        r"|replace.{0,10}digit|mask.{0,10}digit.{0,10}keep.{0,10}format",
-        t,
-    ):
-        return {"type": "format_preserve_mask"}
-
-    # Generic mask/hide — only if no "except" clause (already handled above)
-    if re.search(r"\bmask\b|\bhide\b|\bobfuscat\b|\bconceal\b", t):
-        return {"type": "mask_all"}
-
-    return None
-
-
 # ─── Public: normalize rule text → structured op ─────────────────────────────
 def normalize_masking_rule(
     rule_text: str,
     llm_provider=None,
-    allow_fallback: bool = True,
-    warnings: list = None,
 ) -> Optional[Dict[str, Any]]:
     """
     Convert a plain-English masking instruction to a MaskingOp dict.
 
-    Tries LLM first (if provider is not DemoProvider), then falls back to
-    keyword matching.  Returns None if the rule is empty or unrecognised.
+    Uses LLM when available (provider is not DemoProvider). If the LLM fails
+    after retries, the exception is raised directly. Returns None if the rule
+    is empty.
     """
     if not rule_text or not rule_text.strip():
         return None
 
-    # ── LLM path (skip for demo/local providers — keyword fallback is equivalent) ──
+    # ── LLM path (skip for demo/local providers) ──────────────────────────────
     if llm_provider is not None and getattr(llm_provider, "sends_data_to_external_api", True):
         last_exc: Exception | None = None
         for attempt in range(1, 4):  # up to 3 attempts
@@ -243,17 +105,9 @@ def normalize_masking_rule(
                 logger.debug("normalize_masking_rule LLM network error: %s", exc)
                 break
 
-        from services.llm_service import LLMUnavailableError
-        if not allow_fallback:
-            raise LLMUnavailableError(
-                f"Masking rule normalisation failed after retries: {last_exc}. "
-                "Enable rule-based fallback in Settings or check your LLM provider."
-            ) from last_exc
-        if warnings is not None:
-            warnings.append("Masking rule normalisation used keyword fallback — LLM call failed.")
+        raise last_exc
 
-    # ── Keyword fallback ──────────────────────────────────────────────────────
-    return _keyword_normalize(rule_text)
+    return None
 
 
 # ─── Public: apply a structured MaskingOp to a value ─────────────────────────

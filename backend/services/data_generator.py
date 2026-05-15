@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from faker import Faker
-from services.masking import apply_masking_op, normalize_masking_rule
+from services.masking import apply_masking_op
 
 fake = Faker()
 
@@ -199,20 +199,14 @@ def _gen_for_field_type(field_type: str) -> Any:
 # Delegates to structured masking ops via services/masking.py
 # ---------------------------------------------------------------------------
 def _apply_custom_rule(value: str, custom_rule: str, masking_op: dict = None) -> str:
-    """Apply a masking instruction to a single generated value.
+    """Apply a custom masking instruction to a generated value.
 
-    Prefers a pre-normalised masking_op (structured dict) when available.
-    Falls back to normalising the plain-text rule on the fly (no LLM, keyword-only).
+    Uses the pre-normalised masking_op (set by normalize-rule at rule-entry time).
+    Without one (e.g. demo mode), the value is returned as-is — custom rules are not honoured.
     """
-    op = masking_op
-    if not op and custom_rule:
-        # Keyword-only fallback — no LLM call at generation time
-        op = normalize_masking_rule(custom_rule, llm_provider=None)
-    if op:
-        return apply_masking_op(value, op)
-    # Ultimate fallback: mask all alphanumeric
-    import re as _re
-    return _re.sub(r"[A-Za-z0-9]", "*", str(value))
+    if masking_op:
+        return apply_masking_op(value, masking_op)
+    return str(value)
 
 
 # ---------------------------------------------------------------------------
