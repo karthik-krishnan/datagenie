@@ -1,11 +1,16 @@
 """
-Pre-built schema templates for Demo mode.
-No parsing, no regex, no LLM — just realistic canned data that demonstrates
-all features of the app (compliance, distributions, relationships, etc.)
+Pre-built starter templates — ready-made domain schemas to kick off generation
+without uploading a file or writing a description.
 
-Multi-table templates (tables key) generate a master-detail schema with FK
-relationships so the Relationships stage and volume scaling are exercised.
-Single-table templates (columns key) keep the original single-entity demos.
+No parsing, no regex, no LLM required.  Each template ships with realistic
+column definitions, compliance metadata, distributions and FK relationships so
+every stage of the app is exercised straight away.
+
+Multi-table templates (tables key) produce a master-detail schema with FK
+relationships.  Single-table templates (columns key) produce a flat entity.
+
+The DEFAULT_TEMPLATE ("generic") is a neutral organizations → contacts →
+interactions schema used when no domain keyword matches the user's input.
 """
 
 from typing import Any, Dict
@@ -15,104 +20,114 @@ from typing import Any, Dict
 MULTI_TEMPLATES: Dict[str, Dict[str, Any]] = {
 
     # ── Generic / default template ─────────────────────────────────────────────
-    # Shown when no domain keyword matches — looks like a freshly-inferred schema
-    # rather than a domain-specific one.  Organizations → Contacts → Interactions.
+    # The demo dataset — shown whenever the app is in offline mode.
+    # Jobs → Applicants → Interviews: universally relatable, naturally surfaces
+    # PII compliance fields (name, email, phone), and has no overlap with the
+    # domain-specific templates (healthcare, ecommerce, hr, banking, education).
     "generic": {
         "keywords": [
-            "user", "person", "people", "member", "contact", "profile", "account",
-            "organization", "company", "business", "client", "record",
-            "generate", "test", "sample", "data", "dataset", "table",
+            "job", "jobs", "career", "careers", "hiring", "hire", "recruitment",
+            "applicant", "application", "candidate", "interview", "position",
+            "vacancy", "opening", "posting",
         ],
-        "entity_type": "organizations",
+        "entity_type": "jobs",
         "volume": 50,
-        "per_parent_counts": {"contacts": 4, "interactions": 3},
+        "per_parent_counts": {"applicants": 5, "interviews": 2},
         "frameworks_detected": ["PII", "GDPR"],
         "sensitive_detected": True,
         "tables": [
             {
-                "table_name": "organizations",
+                "table_name": "jobs",
                 "columns": [
-                    {"name": "org_id",        "type": "string",  "sample_values": ["ORG-001", "ORG-002", "ORG-003"]},
-                    {"name": "name",          "type": "string",  "sample_values": ["Acme Corp", "Brightwave Ltd", "Novatek"]},
-                    {"name": "industry",      "type": "enum",    "sample_values": ["Technology", "Retail", "Healthcare"],
-                     "enum_values": ["Technology", "Retail", "Healthcare", "Finance", "Manufacturing", "Education", "Other"]},
-                    {"name": "size",          "type": "enum",    "sample_values": ["Mid-size", "Enterprise", "Startup"],
-                     "enum_values": ["Startup", "Small", "Mid-size", "Enterprise"]},
-                    {"name": "country",       "type": "string",  "sample_values": ["United States", "United Kingdom", "Canada"]},
-                    {"name": "city",          "type": "string",  "sample_values": ["Austin", "London", "Toronto"]},
-                    {"name": "status",        "type": "enum",    "sample_values": ["active", "inactive"],
-                     "enum_values": ["active", "inactive", "prospect"]},
-                    {"name": "created_date",  "type": "date",    "sample_values": ["2021-05-10", "2020-11-22"],
+                    {"name": "job_id",          "type": "string",  "sample_values": ["JOB-001", "JOB-002", "JOB-003"]},
+                    {"name": "title",            "type": "string",  "sample_values": ["Software Engineer", "Product Manager", "Data Analyst"]},
+                    {"name": "department",       "type": "enum",    "sample_values": ["Engineering", "Product", "Data"],
+                     "enum_values": ["Engineering", "Product", "Data", "Marketing", "Sales", "Design", "Operations"]},
+                    {"name": "location",         "type": "string",  "sample_values": ["New York, NY", "Austin, TX", "Remote"]},
+                    {"name": "employment_type",  "type": "enum",    "sample_values": ["Full-time", "Contract", "Part-time"],
+                     "enum_values": ["Full-time", "Part-time", "Contract", "Internship"]},
+                    {"name": "salary_range",     "type": "string",  "sample_values": ["$90,000 – $120,000", "$70,000 – $95,000", "$130,000 – $160,000"]},
+                    {"name": "status",           "type": "enum",    "sample_values": ["Open", "Closed", "On hold"],
+                     "enum_values": ["Open", "Closed", "On hold", "Draft"]},
+                    {"name": "posted_date",      "type": "date",    "sample_values": ["2024-01-15", "2024-02-03"],
                      "date_format": "YYYY-MM-DD"},
                 ],
                 "distributions": {
-                    "industry": {"Technology": 30, "Retail": 20, "Healthcare": 15, "Finance": 15, "Manufacturing": 10, "Education": 7, "Other": 3},
-                    "size":     {"Startup": 20, "Small": 30, "Mid-size": 35, "Enterprise": 15},
-                    "status":   {"active": 75, "inactive": 15, "prospect": 10},
+                    "department":      {"Engineering": 35, "Product": 20, "Data": 15, "Marketing": 10, "Sales": 10, "Design": 7, "Operations": 3},
+                    "employment_type": {"Full-time": 70, "Contract": 20, "Part-time": 7, "Internship": 3},
+                    "status":          {"Open": 60, "Closed": 30, "On hold": 8, "Draft": 2},
                 },
                 "compliance_rules": {},
             },
             {
-                "table_name": "contacts",
+                "table_name": "applicants",
                 "columns": [
-                    {"name": "contact_id",   "type": "string",  "sample_values": ["CON-1001", "CON-1002", "CON-1003"]},
-                    {"name": "org_id",       "type": "string",  "sample_values": ["ORG-001", "ORG-001", "ORG-002"]},
-                    {"name": "first_name",   "type": "string",  "sample_values": ["Sarah", "James", "Priya"]},
-                    {"name": "last_name",    "type": "string",  "sample_values": ["Kim", "Carter", "Sharma"]},
-                    {"name": "email",        "type": "email",   "sample_values": ["s.kim@acme.com", "j.carter@brightwave.com"]},
-                    {"name": "phone",        "type": "phone",   "sample_values": ["+1-555-0142", "+44-20-7946-0881"]},
-                    {"name": "job_title",    "type": "string",  "sample_values": ["VP Engineering", "Marketing Director", "CEO"]},
-                    {"name": "department",   "type": "enum",    "sample_values": ["Engineering", "Marketing", "Sales"],
-                     "enum_values": ["Engineering", "Marketing", "Sales", "Finance", "Operations", "HR"]},
-                    {"name": "created_at",   "type": "date",    "sample_values": ["2022-03-18", "2023-07-04"],
+                    {"name": "applicant_id",  "type": "string",  "sample_values": ["APP-1001", "APP-1002", "APP-1003"]},
+                    {"name": "job_id",        "type": "string",  "sample_values": ["JOB-001", "JOB-001", "JOB-002"]},
+                    {"name": "first_name",    "type": "string",  "sample_values": ["Maria", "James", "Priya"]},
+                    {"name": "last_name",     "type": "string",  "sample_values": ["Santos", "O'Brien", "Patel"]},
+                    {"name": "email",         "type": "email",   "sample_values": ["maria.santos@email.com", "jobrien@gmail.com"]},
+                    {"name": "phone",         "type": "phone",   "sample_values": ["+1-555-0182", "+1-512-555-0234"]},
+                    {"name": "years_experience", "type": "integer", "sample_values": ["3", "7", "1"]},
+                    {"name": "source",        "type": "enum",    "sample_values": ["LinkedIn", "Referral", "Company Website"],
+                     "enum_values": ["LinkedIn", "Indeed", "Referral", "Company Website", "Recruiter", "Other"]},
+                    {"name": "status",        "type": "enum",    "sample_values": ["Screening", "Offer Extended", "Rejected"],
+                     "enum_values": ["Applied", "Screening", "Interview", "Offer Extended", "Hired", "Rejected", "Withdrawn"]},
+                    {"name": "applied_date",  "type": "date",    "sample_values": ["2024-02-10", "2024-02-14"],
                      "date_format": "YYYY-MM-DD"},
                 ],
                 "distributions": {
-                    "department": {"Engineering": 25, "Sales": 30, "Marketing": 20, "Finance": 10, "Operations": 10, "HR": 5},
+                    "source": {"LinkedIn": 40, "Indeed": 20, "Referral": 18, "Company Website": 12, "Recruiter": 7, "Other": 3},
+                    "status": {"Applied": 15, "Screening": 20, "Interview": 25, "Offer Extended": 10, "Hired": 8, "Rejected": 18, "Withdrawn": 4},
                 },
                 "compliance_rules": {
-                    "email": {"action": "fake_realistic", "custom_rule": None, "frameworks": ["PII", "GDPR"]},
-                    "phone": {"action": "fake_realistic", "custom_rule": None, "frameworks": ["PII", "GDPR"]},
+                    "email": {"action": "fake_realistic", "custom_rule": None, "frameworks": ["PII", "GDPR", "CCPA"]},
+                    "phone": {"action": "fake_realistic", "custom_rule": None, "frameworks": ["PII", "GDPR", "CCPA"]},
+                    "first_name": {"action": "fake_realistic", "custom_rule": None, "frameworks": ["PII", "GDPR"]},
+                    "last_name":  {"action": "fake_realistic", "custom_rule": None, "frameworks": ["PII", "GDPR"]},
                 },
             },
             {
-                "table_name": "interactions",
+                "table_name": "interviews",
                 "columns": [
-                    {"name": "interaction_id", "type": "integer", "sample_values": ["4001", "4002", "4003"]},
-                    {"name": "contact_id",     "type": "string",  "sample_values": ["CON-1001", "CON-1002", "CON-1001"]},
-                    {"name": "type",           "type": "enum",    "sample_values": ["email", "call", "meeting"],
-                     "enum_values": ["email", "call", "meeting", "demo", "follow-up"]},
-                    {"name": "date",           "type": "date",    "sample_values": ["2024-04-10", "2024-05-02"],
+                    {"name": "interview_id",   "type": "string",  "sample_values": ["INT-5001", "INT-5002", "INT-5003"]},
+                    {"name": "applicant_id",   "type": "string",  "sample_values": ["APP-1001", "APP-1001", "APP-1002"]},
+                    {"name": "round",          "type": "enum",    "sample_values": ["Phone Screen", "Technical", "Final"],
+                     "enum_values": ["Phone Screen", "Technical", "System Design", "HR", "Final", "Panel"]},
+                    {"name": "scheduled_at",   "type": "date",    "sample_values": ["2024-03-05", "2024-03-12"],
                      "date_format": "YYYY-MM-DD"},
-                    {"name": "notes",          "type": "string",  "sample_values": ["Discussed Q2 roadmap", "Introduced new pricing"]},
-                    {"name": "outcome",        "type": "enum",    "sample_values": ["positive", "neutral", "follow-up required"],
-                     "enum_values": ["positive", "neutral", "follow-up required", "no response"]},
+                    {"name": "interviewer",    "type": "string",  "sample_values": ["Alex Chen", "Jordan Lee", "Sam Rivera"]},
+                    {"name": "duration_mins",  "type": "integer", "sample_values": ["30", "60", "45"]},
+                    {"name": "outcome",        "type": "enum",    "sample_values": ["Passed", "Failed", "Pending"],
+                     "enum_values": ["Passed", "Failed", "Pending", "No Show", "Rescheduled"]},
+                    {"name": "notes",          "type": "string",  "sample_values": ["Strong problem solving skills", "Good cultural fit"]},
                 ],
                 "distributions": {
-                    "type":    {"email": 45, "call": 30, "meeting": 15, "demo": 7, "follow-up": 3},
-                    "outcome": {"positive": 40, "neutral": 35, "follow-up required": 20, "no response": 5},
+                    "round":   {"Phone Screen": 35, "Technical": 30, "System Design": 10, "HR": 10, "Final": 10, "Panel": 5},
+                    "outcome": {"Passed": 45, "Failed": 30, "Pending": 15, "No Show": 5, "Rescheduled": 5},
                 },
                 "compliance_rules": {
-                    "notes": {"action": "fake_realistic", "custom_rule": None, "frameworks": ["GDPR"]},
+                    "notes":       {"action": "fake_realistic", "custom_rule": None, "frameworks": ["GDPR"]},
+                    "interviewer": {"action": "fake_realistic", "custom_rule": None, "frameworks": ["PII"]},
                 },
             },
         ],
         "relationships": [
             {
-                "source_table": "organizations",
-                "source_column": "org_id",
-                "target_table": "contacts",
-                "target_column": "org_id",
+                "source_table": "jobs",
+                "source_column": "job_id",
+                "target_table": "applicants",
+                "target_column": "job_id",
                 "cardinality": "one_to_many",
-                "confidence": 0.95,
+                "confidence": 0.98,
             },
             {
-                "source_table": "contacts",
-                "source_column": "contact_id",
-                "target_table": "interactions",
-                "target_column": "contact_id",
+                "source_table": "applicants",
+                "source_column": "applicant_id",
+                "target_table": "interviews",
+                "target_column": "applicant_id",
                 "cardinality": "one_to_many",
-                "confidence": 0.95,
+                "confidence": 0.98,
             },
         ],
     },
@@ -797,9 +812,8 @@ DEFAULT_TEMPLATE = "generic"   # neutral fallback — no domain assumed
 
 def pick_template(context_text: str) -> tuple:
     """
-    Returns (template_key, is_multi) — always picks a multi-table template so
-    demo mode always showcases master-detail relationships.
-    Falls back to DEFAULT_TEMPLATE (ecommerce) when nothing matches.
+    Returns (template_key, is_multi) — always picks a multi-table template.
+    Falls back to DEFAULT_TEMPLATE ("generic") when no domain keyword matches.
     """
     text = context_text.lower() if context_text else ""
 
@@ -846,13 +860,28 @@ def _build_column(c: Dict[str, Any], compliance_rules: Dict[str, Any]) -> Dict[s
     return col
 
 
-def get_demo_schema(context_text: str = "") -> Dict[str, Any]:
+def get_demo_dataset() -> Dict[str, Any]:
     """
-    Return a pre-built demo schema with no parsing or LLM calls.
-    Picks the most relevant template from the context keywords.
+    Return the fixed demo dataset used in offline/demo mode (no LLM configured).
+    Always returns the DEFAULT_TEMPLATE — demo mode must not guess the user's domain,
+    it should just show consistent, working data so all app stages can be exercised.
+    """
+    return _build_schema_for_key(DEFAULT_TEMPLATE)
+
+
+def get_starter_schema(context_text: str = "") -> Dict[str, Any]:
+    """
+    Return the best-matching pre-built starter schema for the given context keywords.
+    Used when a user explicitly picks a domain template (e.g. from the ProfilePicker).
     Multi-table templates produce a relational schema with FK relationships.
     """
     key, is_multi = pick_template(context_text)
+    return _build_schema_for_key(key)
+
+
+def _build_schema_for_key(key: str) -> Dict[str, Any]:
+    """Build and return the full schema response dict for a given template key."""
+    is_multi = key in MULTI_TEMPLATES
 
     if is_multi:
         tmpl = MULTI_TEMPLATES[key]
@@ -887,7 +916,7 @@ def get_demo_schema(context_text: str = "") -> Dict[str, Any]:
             "sensitive_detected": tmpl["sensitive_detected"],
             "frameworks_detected": tmpl["frameworks_detected"],
             "domain_frameworks": [],
-            "context": context_text,
+            "context": "",
             "extracted": {
                 "volume": tmpl["volume"],
                 "entity_type": tmpl["entity_type"],
@@ -921,7 +950,7 @@ def get_demo_schema(context_text: str = "") -> Dict[str, Any]:
             "sensitive_detected": tmpl["sensitive_detected"],
             "frameworks_detected": tmpl["frameworks_detected"],
             "domain_frameworks": [],
-            "context": context_text,
+            "context": "",
             "extracted": {
                 "volume": tmpl["volume"],
                 "entity_type": tmpl["entity_type"],

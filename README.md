@@ -30,6 +30,7 @@ Datagenia is a full-stack application that generates realistic, compliant synthe
 - **Type suggestions** — auto-suggests a better type when a column name implies one (e.g. `created_at` → `date`)
 - **Unique constraints** — auto-detected for identifiers (email, SSN, passport, IBAN, username, etc.); manually overrideable per column
 - **Sensitivity tagging** — click any cell to add/remove compliance framework badges (PII, PCI, HIPAA, GDPR, etc.); auto-detected on column rename
+- **PK / FK column ordering** — primary key and foreign key columns are automatically sorted to the front of every table across all stages
 
 ---
 
@@ -72,6 +73,7 @@ Datagenia is a full-stack application that generates realistic, compliant synthe
 - **Multi-table ZIP** — when schema has multiple tables, all files are bundled in a single ZIP
 - **Dog-ear tabbed preview** — see sample rows per table before downloading; row count badge on each tab
 - **Preview regeneration** — re-run preview after editing any earlier stage
+- **Consistent column ordering** — PK and FK columns appear first in the preview table, matching the schema editor order
 
 ---
 
@@ -93,15 +95,14 @@ Datagenia is a full-stack application that generates realistic, compliant synthe
 
 ### Home Screen & Starter Templates
 - **Profile picker home screen** — consistent sidebar layout with Settings pinned at bottom-left
-- **5 demo templates** — instantly load a fully-configured multi-table schema; works in all modes including Demo
+- **4 domain starter templates** — instantly load a fully-configured multi-table schema for a specific domain; works in all modes including Demo
 - **Saved profiles** — reload any previous generation config (schema + compliance + output settings) with one click; searchable by name
 
 | Template | Schema | Frameworks |
 |----------|--------|------------|
 | 🛒 **E-Commerce Orders** | `customers → orders → order_items` | PCI, PII, GDPR |
-| 🏥 **Healthcare Patients** | `patients → visits + prescriptions` | HIPAA, PII, GDPR |
+| 🏥 **Healthcare Patients** | `patients → visits → prescriptions` | HIPAA, PII, GDPR |
 | 👩‍💼 **HR & Payroll** | `employees → leave_requests` | SOX, PII, GDPR |
-| 🎓 **Student Records** | `students → enrollments` | FERPA, PII, GDPR |
 | 🏦 **Banking & Accounts** | `customers → accounts → transactions + loans` | PCI, GLBA, SOX, PII |
 
 ---
@@ -162,21 +163,27 @@ datagenie/
 │       │   ├── Profiles/            # Save / load / search named profiles
 │       │   ├── Settings/            # LLM provider + compliance feature toggle
 │       │   └── common/              # StageIndicator, Spinner, ChipSelector
-│       ├── store/appStore.js        # Zustand global state
+│       ├── store/appStore.js        # Zustand global state + sortColumnsForDisplay utility
 │       └── utils/llmStorage.js     # localStorage: LLM config + app settings
 │
 ├── backend/                         # FastAPI + SQLAlchemy (async)
+│   ├── app_config.py                # Centralised env-var config (MAX_VOLUME_RECORDS, etc.)
 │   ├── routers/
 │   │   ├── schema.py    # POST /infer, GET /demo, POST /normalize-rule
-│   │   ├── generate.py  # POST /generate, POST /preview
+│   │   ├── generate.py  # POST /generate, POST /preview (enforces volume cap)
 │   │   ├── profiles.py  # CRUD for saved profiles
 │   │   └── settings.py  # LLM settings + test connection
+│   ├── prompts/                     # LLM prompt templates (one file per concern)
+│   │   ├── extraction.py            # Context extraction system + user prompt
+│   │   ├── compliance_domain.py     # Domain framework detection prompt
+│   │   ├── compliance_batch.py      # Batch column classification system prompt
+│   │   └── masking_normalize.py     # Masking rule normalisation prompt
 │   └── services/
 │       ├── llm_service.py           # Multi-provider LLM abstraction
 │       ├── context_extractor.py     # NL → structured schema params
 │       ├── compliance_detector.py   # 211-entry DLP catalog, 8 frameworks, LLM batch
 │       ├── data_generator.py        # Faker-based engine: FK integrity, unique constraints, variable child counts
-│       ├── demo_templates.py        # 5 multi-table + 4 single-table canned schemas
+│       ├── starter_templates.py     # 4 domain multi-table + 4 single-table canned schemas + demo dataset
 │       ├── output_formatter.py      # CSV/TSV/JSON/JSONL/Excel/XML/YAML/Parquet
 │       ├── masking.py               # Plain-English rule → structured MaskingOp
 │       ├── schema_inferrer.py       # File-based column type + stats inference
@@ -246,10 +253,11 @@ The Vite dev server proxies `/api/*` to `http://localhost:8000` automatically.
 ## 🗒 Notes
 
 - **No data leaves your environment** when using Ollama or self-hosting. With cloud providers, only column names and sample values are sent — never full dataset rows.
-- **Demo mode** works fully without any API key — all 4 starter templates load instantly and schema inference uses rule-based detection.
+- **Demo mode** works fully without any API key — the app loads a fixed `jobs → applicants → interviews` demo dataset so every stage can be explored immediately. Schema inference uses rule-based detection with no LLM call.
+- **Starter templates** (E-Commerce, Healthcare, HR & Payroll, Banking) are only loaded when a user explicitly picks one from the home screen — they are never silently selected based on what you type in the description box.
 - **Compliance is optional** — disable it in Settings to skip sensitivity tagging and the compliance stage entirely.
-- The `/api/schema/infer` endpoint never falls back to demo templates. Starter cards use a dedicated `/api/schema/demo` endpoint.
-- **Volume cap** — the UI limits root-entity volume to 10,000 records to keep generation responsive in-browser. Child table rows scale with the per-parent multiplier on top of that.
+- Starter card schemas use a dedicated `/api/schema/demo?keyword=` endpoint; the main `/api/schema/infer` endpoint is always used for user-supplied descriptions and uploaded files.
+- **Volume cap** — the UI limits root-entity volume to 10,000 records by default to keep generation responsive. Exceeding the limit is blocked both in the UI and server-side. Configure the cap via the `MAX_VOLUME_RECORDS` environment variable (see `docker-compose.yml` or `.env.example`). Child table rows scale with the per-parent multiplier on top of the root cap.
 
 ---
 

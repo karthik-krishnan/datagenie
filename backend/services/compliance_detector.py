@@ -83,19 +83,7 @@ def _keyword_domain_frameworks(context_text: str) -> Set[str]:
     return frameworks
 
 
-_DOMAIN_FRAMEWORK_SYSTEM = (
-    "You are a compliance analyst. Identify applicable regulatory frameworks "
-    "from a data description. Return ONLY valid JSON, no explanation."
-)
-
-_DOMAIN_FRAMEWORK_PROMPT = """Given this data context:
-"{context}"
-
-Which regulatory frameworks apply? Return ONLY this JSON:
-{{"frameworks": ["PII", "HIPAA", ...]}}
-
-Choose only from: PII, PCI, HIPAA, GDPR, CCPA, SOX, FERPA, GLBA.
-Return ONLY the JSON object."""
+from prompts.compliance_domain import SYSTEM as _DOMAIN_FRAMEWORK_SYSTEM, TEMPLATE as _DOMAIN_FRAMEWORK_PROMPT
 
 
 def detect_domain_frameworks(context_text: str, llm_provider=None) -> Set[str]:
@@ -564,50 +552,7 @@ def _build_result(frameworks: List[str], field_type: str, default_action: str, c
 # LLM-based batch compliance detection
 # ---------------------------------------------------------------------------
 
-_COMPLIANCE_SYSTEM_PROMPT = """\
-You are a regulatory compliance expert specialising in data-privacy frameworks:
-PII, PCI, HIPAA, GDPR, CCPA, SOX, and FERPA.
-
-Classify each database column supplied by the user.
-
-Rules:
-- Apply ALL frameworks that genuinely apply — a column may belong to several.
-- Handle typos, synonyms, abbreviations, and domain-specific variants
-  (e.g. "pt_id" → HIPAA patient identifier; "cc_num" → PCI card number).
-- Use domain context (healthcare, payments, education …) to assign HIPAA / PCI /
-  FERPA even when the column name alone is ambiguous.
-- default_action MUST be one of:
-    fake_realistic      – replace with synthetic realistic value
-    format_preserving   – preserve format/length, change digits (card#, SSN, IBAN)
-    mask                – replace with *** / range-bucketed value (IPs, salaries)
-    redact              – remove entirely (CVV, biometrics, political opinion)
-- Respond with ONLY valid JSON — no markdown, no code fences, no explanation.
-
-Framework quick-reference (use ALL that apply):
-  PII   → names, emails, phones, addresses, DOBs, SSNs, IPs, device IDs, demographics, usernames
-  PCI   → card numbers (PAN), CVV/CVC/CSC, expiry, service code, track data, PIN — also bank accounts/IBAN/SWIFT/routing
-  HIPAA → all 18 PHI: patient IDs, MRNs, DOBs, phone/fax/email, SSN, addresses+zip, dates-of-service,
-           health-plan beneficiary #s, certificate/license #s, VINs, device IDs, URLs, IPs, biometrics,
-           photos, diagnoses, prescriptions, lab results, provider names/IDs
-  GDPR  → any PII for EU/EEA residents; also Article 9 special categories: race/ethnicity, political opinion,
-           religion, trade union, genetic data, biometric, health data, sex life/orientation
-  CCPA  → any PII for California residents (opt-out, right to delete)
-  SOX   → salary, compensation, bonus, stock options, revenue, financial statements, tax IDs (EIN/TIN),
-           audit trails, internal controls
-  FERPA → student IDs, grades, GPA, transcripts, enrollment, course records, financial aid, discipline records
-  GLBA  → bank accounts, routing/IBAN/SWIFT, credit scores, loan data, income/net-worth, investment accounts, KYC/AML
-
-Response schema (one key per column name supplied):
-{
-  "<column_name>": {
-    "is_sensitive": true,
-    "frameworks": ["PII", "GDPR"],
-    "field_type": "email_address",
-    "default_action": "fake_realistic",
-    "confidence": 0.95
-  }
-}
-"""
+from prompts.compliance_batch import SYSTEM as _COMPLIANCE_SYSTEM_PROMPT
 
 
 def detect_compliance_batch_llm(

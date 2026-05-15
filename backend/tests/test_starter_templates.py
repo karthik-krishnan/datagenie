@@ -1,8 +1,8 @@
 """
-Tests for demo_templates.py
+Tests for starter_templates.py
 
 Covers regressions from:
-- Bug: demo mode compliance stage showed "no fields require special handling"
+- Bug: offline mode compliance stage showed "no fields require special handling"
   because template fields had default_action="fake_realistic" from detect_compliance
   even though the template stored non-trivial actions (mask/format_preserving).
 - Template keyword selection.
@@ -14,7 +14,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 import pytest
-from services.demo_templates import get_demo_schema, pick_template, TEMPLATES, MULTI_TEMPLATES
+from services.starter_templates import get_starter_schema, pick_template, TEMPLATES, MULTI_TEMPLATES
 
 
 # ─── Template selection ────────────────────────────────────────────────────────
@@ -67,59 +67,59 @@ class TestPickTemplate:
 
 # ─── Schema structure ─────────────────────────────────────────────────────────
 
-class TestGetDemoSchema:
+class TestGetStarterSchema:
 
     def test_default_returns_multi_table_generic(self):
-        schema = get_demo_schema("")
+        schema = get_starter_schema("")
         assert "tables" in schema
-        assert len(schema["tables"]) == 3  # organizations, contacts, interactions
+        assert len(schema["tables"]) == 3  # jobs, applicants, interviews
         table_names = {t["table_name"] for t in schema["tables"]}
-        assert {"organizations", "contacts", "interactions"} == table_names
+        assert {"jobs", "applicants", "interviews"} == table_names
 
     def test_default_has_relationships(self):
-        schema = get_demo_schema("")
+        schema = get_starter_schema("")
         assert len(schema["relationships"]) == 2
 
     def test_default_has_per_parent_counts(self):
-        schema = get_demo_schema("")
+        schema = get_starter_schema("")
         ppc = schema["extracted"].get("per_parent_counts", {})
-        assert "contacts" in ppc and "interactions" in ppc
+        assert "applicants" in ppc and "interviews" in ppc
 
     def test_ecommerce_returns_for_order_keywords(self):
-        schema = get_demo_schema("e-commerce orders with checkout and payment")
+        schema = get_starter_schema("e-commerce orders with checkout and payment")
         table_names = {t["table_name"] for t in schema["tables"]}
         assert {"customers", "orders", "order_items"} == table_names
 
     def test_all_schemas_are_multi_table(self):
         # pick_template always returns multi-table now — even generic user context
-        schema = get_demo_schema("users with email and phone")
+        schema = get_starter_schema("users with email and phone")
         assert len(schema["tables"]) >= 2, (
-            "Demo schema should always be multi-table (pick_template always returns multi)"
+            "Starter schema should always be multi-table (pick_template always returns multi)"
         )
 
     def test_columns_have_pii_field(self):
         # Check across all tables
-        schema = get_demo_schema()
+        schema = get_starter_schema()
         for tbl in schema["tables"]:
             for col in tbl["columns"]:
                 assert "pii" in col, f"Column '{col['name']}' missing 'pii' field"
 
     def test_sensitive_detected_true(self):
-        schema = get_demo_schema()
+        schema = get_starter_schema()
         assert schema["sensitive_detected"] is True
         assert schema["pii_detected"] is True
 
     def test_extracted_has_compliance_rules(self):
-        schema = get_demo_schema()
+        schema = get_starter_schema()
         assert "compliance_rules" in schema["extracted"]
         assert len(schema["extracted"]["compliance_rules"]) > 0
 
     def test_extracted_has_distributions(self):
-        schema = get_demo_schema("users with email")
+        schema = get_starter_schema("users with email")
         assert "distributions" in schema["extracted"]
 
     def test_frameworks_detected_populated(self):
-        schema = get_demo_schema("users with email")
+        schema = get_starter_schema("users with email")
         assert len(schema["frameworks_detected"]) > 0
 
 
@@ -151,12 +151,12 @@ def _nontrivial_rules_count(schema: dict) -> int:
     return count
 
 
-class TestComplianceFieldsInDemoTemplates:
+class TestComplianceFieldsInStarterTemplates:
     """
-    Regression: each demo template must have at least 2 fields that would
+    Regression: each starter template must have at least 2 fields that would
     show up in the ComplianceReviewPanel as 'needing explicit decisions'
     (i.e. pii.default_action != fake_realistic OR stored action != fake_realistic).
-    This ensures the Compliance stage is never empty in demo mode.
+    This ensures the Compliance stage is never empty in offline mode.
     """
 
     @pytest.mark.parametrize("keyword,expected_key", [
@@ -171,7 +171,7 @@ class TestComplianceFieldsInDemoTemplates:
         ("bank account transaction loan", "banking"),
     ])
     def test_at_least_2_nontrivial_compliance_fields(self, keyword, expected_key):
-        schema = get_demo_schema(keyword)
+        schema = get_starter_schema(keyword)
         nontrivial = _nontrivial_count(schema)
         rules_nontrivial = _nontrivial_rules_count(schema)
         assert max(nontrivial, rules_nontrivial) >= 2, (
@@ -183,7 +183,7 @@ class TestComplianceFieldsInDemoTemplates:
     def test_hr_template_has_ssn_or_tax_id_masked(self):
         # SSN is in the HR template (employees). "users with ssn" now routes to ecommerce.
         # Test with explicit HR keywords to hit the right template.
-        schema = get_demo_schema("employee payroll ssn tax_id HR")
+        schema = get_starter_schema("employee payroll ssn tax_id HR")
         cols = {c["name"]: c for c in _all_columns(schema)}
         # HR template should have at least one of: ssn, tax_id, salary — all masked
         sensitive_cols = [
@@ -195,7 +195,7 @@ class TestComplianceFieldsInDemoTemplates:
         )
 
     def test_patients_has_hipaa_fields_with_nontrivial_action(self):
-        schema = get_demo_schema("patient hospital")
+        schema = get_starter_schema("patient hospital")
         hipaa_nontrivial = [
             col["name"] for col in _all_columns(schema)
             if "HIPAA" in col.get("pii", {}).get("frameworks", [])
@@ -204,19 +204,19 @@ class TestComplianceFieldsInDemoTemplates:
         assert len(hipaa_nontrivial) >= 2, f"Need 2+ HIPAA fields, got: {hipaa_nontrivial}"
 
     def test_ecommerce_has_pci_shipping_address(self):
-        schema = get_demo_schema("orders checkout payment")
+        schema = get_starter_schema("orders checkout payment")
         # Multi-table template: check across all tables
         cols = {c["name"]: c for c in _all_columns(schema)}
         assert "shipping_address" in cols, "ecommerce template must have shipping_address"
 
     def test_employees_has_sox_salary_masked(self):
-        schema = get_demo_schema("employee payroll salary")
+        schema = get_starter_schema("employee payroll salary")
         cols = {c["name"]: c for c in _all_columns(schema)}
         assert "salary" in cols, "employees template must have salary column"
         assert cols["salary"]["pii"].get("default_action") in NON_TRIVIAL_ACTIONS
 
     def test_students_has_ferpa_student_id(self):
-        schema = get_demo_schema("student gpa ferpa")
+        schema = get_starter_schema("student gpa ferpa")
         cols = {c["name"]: c for c in _all_columns(schema)}
         assert "student_id" in cols
         assert cols["student_id"]["pii"].get("default_action") in NON_TRIVIAL_ACTIONS

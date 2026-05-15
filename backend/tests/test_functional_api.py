@@ -190,23 +190,24 @@ class TestInferTextOnly:
             "Demo /infer returned no relationships — expected FK relationships in demo schema"
         )
 
-    def test_demo_text_only_keyword_selects_matching_template(self):
-        """Healthcare keyword should return the healthcare multi-table template."""
+    def test_demo_mode_ignores_keywords_always_returns_generic(self):
+        """Demo /infer always returns the fixed demo dataset regardless of context keywords.
+        Domain-specific keyword matching only applies when the user explicitly picks a
+        starter template — not when the app is in offline/demo mode."""
         r = _infer(context_text="patient records for a hospital")
         body = r.json()
-        table_names = [t["table_name"] for t in body["tables"]]
-        # Healthcare template has patients, visits, prescriptions
-        assert any("patient" in n for n in table_names), (
-            f"Expected healthcare template tables, got: {table_names}"
+        table_names = {t["table_name"] for t in body["tables"]}
+        assert "jobs" in table_names, (
+            f"Demo mode should always return generic dataset (jobs/applicants/interviews), got: {table_names}"
         )
 
     def test_demo_empty_context_returns_generic_template(self):
-        """Empty/blank context → generic (organizations/contacts/interactions) template, not ecommerce."""
+        """Empty/blank context → generic (jobs/applicants/interviews) demo dataset."""
         r = _infer(context_text="")
         body = r.json()
         table_names = {t["table_name"] for t in body["tables"]}
-        assert "organizations" in table_names, (
-            f"Empty context should return generic template, got: {table_names}"
+        assert "jobs" in table_names, (
+            f"Empty context should return generic demo dataset, got: {table_names}"
         )
 
 
