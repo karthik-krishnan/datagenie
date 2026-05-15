@@ -204,9 +204,11 @@ class TestMultipleFiles:
         rels = schema["relationships"]
         assert len(rels) > 0, "Expected FK relationship between orders.user_id → users.id"
         rel = rels[0]
-        assert rel["source_table"] == "orders"
-        assert rel["source_column"] == "user_id"
-        assert rel["target_table"] == "users"
+        # Convention: source_table = parent (PK owner), target_table = child (FK holder)
+        assert rel["source_table"] == "users"
+        assert rel["source_column"] == "id"
+        assert rel["target_table"] == "orders"
+        assert rel["target_column"] == "user_id"
 
     def test_three_table_chain_relationships(self, tmp_path):
         """users → orders → order_items — all three FKs detected."""
@@ -220,9 +222,10 @@ class TestMultipleFiles:
 
         schema = infer_schema([u_pf, o_pf, i_pf])
         rels = schema["relationships"]
-        src_cols = {r["source_column"] for r in rels}
-        assert "user_id" in src_cols
-        assert "order_id" in src_cols
+        # Convention: FK columns live in target_column (child table)
+        tgt_cols = {r["target_column"] for r in rels}
+        assert "user_id" in tgt_cols
+        assert "order_id" in tgt_cols
 
     def test_no_spurious_self_relationships(self, tmp_path):
         """A table should never FK to itself."""
@@ -299,13 +302,14 @@ class TestMultiTableTextContext:
 
     def test_fk_relationships_auto_detected(self):
         schema = infer_schema([], MULTI_TABLE_CTX)
+        # Convention: source_table = parent (PK), target_table = child (FK holder)
         rels = {
-            (r["source_table"], r["source_column"], r["target_table"])
+            (r["source_table"], r["target_table"], r["target_column"])
             for r in schema["relationships"]
         }
-        assert ("addresses",   "customer_id", "customers") in rels
-        assert ("orders",      "customer_id", "customers") in rels
-        assert ("order_items", "order_id",    "orders")    in rels
+        assert ("customers", "addresses",   "customer_id") in rels
+        assert ("customers", "orders",      "customer_id") in rels
+        assert ("orders",    "order_items", "order_id")    in rels
 
     def test_data_generates_for_all_four_tables(self):
         """Full round-trip: text → schema → generate_data → 4 tables with FK integrity."""
@@ -347,6 +351,7 @@ class TestMultiTableTextContext:
         3. comments: id, post_id, user_id, body
         """
         schema = infer_schema([], ctx)
-        rels = {(r["source_table"], r["source_column"]) for r in schema["relationships"]}
+        # Convention: FK column lives in target_table (child); check by (target_table, target_column)
+        rels = {(r["target_table"], r["target_column"]) for r in schema["relationships"]}
         assert ("posts",    "user_id") in rels
         assert ("comments", "post_id") in rels
