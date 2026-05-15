@@ -79,12 +79,20 @@ export default function VolumeInput({
         <input
           type="number"
           min={1}
-          max={1000000}
+          max={10000}
           value={value || ""}
           placeholder="e.g. 100"
-          onChange={(e) => onChange(parseInt(e.target.value || "0", 10))}
+          onChange={(e) => {
+            const n = parseInt(e.target.value || "0", 10);
+            onChange(Math.min(n, 10000));
+          }}
           className="w-48 border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-indigo-500"
         />
+        {value > 9000 && (
+          <p className="text-xs text-amber-600 mt-1">
+            Large volumes may take a few seconds to generate. Maximum is 10,000 root records.
+          </p>
+        )}
       </div>
 
       {/* ── Per-child counts ── */}

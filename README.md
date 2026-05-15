@@ -1,8 +1,8 @@
-# 🪄 DataGenie — AI-Powered Synthetic Test Data Generator
+# 🪄 Datagenia — AI-Powered Synthetic Test Data Generator
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-DataGenie is a full-stack application that generates realistic, compliant synthetic test data from natural language descriptions or uploaded sample files. It infers schema, detects sensitive fields, enforces masking rules, and outputs data in multiple formats — all without your real data ever leaving your environment.
+Datagenia is a full-stack application that generates realistic, compliant synthetic test data from natural language descriptions or uploaded sample files. It infers schema, detects sensitive fields, enforces masking rules, and outputs data in multiple formats — all without your real data ever leaving your environment.
 
 ---
 
@@ -246,6 +246,25 @@ The Vite dev server proxies `/api/*` to `http://localhost:8000` automatically.
 ## 🗒 Notes
 
 - **No data leaves your environment** when using Ollama or self-hosting. With cloud providers, only column names and sample values are sent — never full dataset rows.
-- **Demo mode** works fully without any API key — all 5 starter templates load instantly and schema inference uses rule-based detection.
+- **Demo mode** works fully without any API key — all 4 starter templates load instantly and schema inference uses rule-based detection.
 - **Compliance is optional** — disable it in Settings to skip sensitivity tagging and the compliance stage entirely.
 - The `/api/schema/infer` endpoint never falls back to demo templates. Starter cards use a dedicated `/api/schema/demo` endpoint.
+- **Volume cap** — the UI limits root-entity volume to 10,000 records to keep generation responsive in-browser. Child table rows scale with the per-parent multiplier on top of that.
+
+---
+
+## 🔭 Future Capabilities
+
+Features on the roadmap — not yet available but planned as the project grows:
+
+| Capability | Description |
+|:-----------|:------------|
+| **Composite primary keys** | Tables where the PK spans multiple columns (e.g. `order_id + product_id`). FK resolution would enforce the combined tuple, not just individual columns. |
+| **Higher-volume generation** | Server-side streaming or chunked generation to support millions of rows without browser memory constraints. |
+| **Circular / self-referential FKs** | Tables with a `parent_id` pointing back to the same table (hierarchies, org charts, category trees). |
+| **Many-to-many uniqueness enforcement** | Junction tables where the FK pair `(a_id, b_id)` must be unique across all rows. |
+| **Custom data providers** | Plug in domain-specific generators (e.g. realistic product names, medical codes, postal addresses by country) beyond the built-in Faker pool. |
+| **Saved profiles with versioning** | Track schema evolution over time and diff two profile versions. |
+| **Incremental / delta generation** | Generate only the new rows needed to top up an existing dataset, preserving existing PKs. |
+| **SQL DDL export** | Export schema as `CREATE TABLE` DDL alongside the data, with FK constraints and indexes. |
+| **Direct database seeding** | Push generated data directly to a connected PostgreSQL / MySQL / SQLite instance instead of downloading a file. |
