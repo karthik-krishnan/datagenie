@@ -259,12 +259,6 @@ export default function SettingsModal() {
 
             {err && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2 text-sm">{err}</div>}
 
-            {testResult && (
-              <div className={`rounded-lg px-3 py-2 text-sm border ${testResult.ok ? "bg-green-50 border-green-200 text-green-800" : "bg-red-50 border-red-200 text-red-700"}`}>
-                {testResult.ok ? "✓" : "✗"} {testResult.message}
-              </div>
-            )}
-
             {/* ── Features ─────────────────────────────────────────────────── */}
             <div className="border-t border-gray-100 pt-4 mt-2">
               <h3 className="text-sm font-semibold text-gray-700 mb-3">Features</h3>
@@ -294,14 +288,21 @@ export default function SettingsModal() {
 
         {/* ── Sticky footer — always visible ──────────────────────────────── */}
         <div className="flex-shrink-0 border-t border-gray-200 bg-white px-6 py-4 rounded-b-2xl flex justify-between items-center">
-          <button
-            onClick={testConnection}
-            disabled={testing || provider === "demo" || !keyReady}
-            title={!keyReady ? "Enter an API key first" : ""}
-            className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-40 text-sm"
-          >
-            {testing ? <><Spinner /> Testing…</> : "🔌 Test Connection"}
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={testConnection}
+              disabled={testing || provider === "demo" || !keyReady}
+              title={!keyReady ? "Enter an API key first" : ""}
+              className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-40 text-sm"
+            >
+              {testing ? <><Spinner /> Testing…</> : "🔌 Test Connection"}
+            </button>
+            {testResult && (
+              <span className={`text-sm ${testResult.ok ? "text-green-700" : "text-red-600"}`}>
+                {testResult.ok ? "✓" : "✗"} {testResult.message}
+              </span>
+            )}
+          </div>
           <div className="flex gap-2">
             <button onClick={() => setShowSettings(false)} className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50">Cancel</button>
             <button onClick={save} className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
@@ -309,6 +310,7 @@ export default function SettingsModal() {
             </button>
           </div>
         </div>
+
 
       </div>
     </div>
