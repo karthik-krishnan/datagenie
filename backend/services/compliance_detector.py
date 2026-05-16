@@ -777,20 +777,3 @@ def detect_compliance_batch_llm(
 
     return {"results": results, "warning": warning, "attempts": attempts}
 
-
-# ---------------------------------------------------------------------------
-# Backward-compatible shim so existing code that imports detect_pii still works
-# ---------------------------------------------------------------------------
-def detect_pii(column_name: str, sample_values: List[Any]) -> Dict[str, Any]:
-    """Legacy shim — wraps detect_compliance into the old detect_pii response shape."""
-    result = detect_compliance(column_name, sample_values)
-    primary_fw = result["frameworks"][0] if result["frameworks"] else None
-    return {
-        "is_pii": result["is_sensitive"],
-        "category": primary_fw,
-        "frameworks": result["frameworks"],
-        "pii_type": result.get("field_type"),
-        "default_action": result.get("default_action"),
-        "recommendations": result.get("recommendations", {}),
-        "confidence": result["confidence"],
-    }
