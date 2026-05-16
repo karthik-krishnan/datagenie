@@ -31,8 +31,6 @@ Examples:
 - "mask last 4 characters" → {{"fn": "lambda v: v[:-4] + '****' if len(v) > 4 else '*' * len(v)"}}
 - "show only last 4 digits" → {{"fn": "lambda v: '*' * (len(v) - 4) + v[-4:] if len(v) > 4 else v"}}
 - "mask first and last character" → {{"fn": "lambda v: '*' + v[1:-1] + '*' if len(v) > 2 else '*' * len(v)"}}
-- "mask 2nd character" → {{"fn": "lambda v: v[0] + '*' + v[2:] if len(v) > 1 else v"}}
-- "mask 3rd character" → {{"fn": "lambda v: v[:2] + '*' + v[3:] if len(v) > 2 else v"}}
 - "redact" → {{"fn": "lambda v: '[REDACTED]'"}}
 - "mask all" → {{"fn": "lambda v: '*' * len(v)"}}
 
