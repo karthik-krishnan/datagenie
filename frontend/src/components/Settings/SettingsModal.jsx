@@ -161,7 +161,7 @@ export default function SettingsModal() {
                     <input
                       type="password"
                       value={apiKey}
-                      onChange={(e) => setApiKey(e.target.value)}
+                      onChange={(e) => { setApiKey(e.target.value); setTestResult(null); }}
                       placeholder="Enter API key"
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-indigo-500"
                       autoFocus
@@ -178,7 +178,7 @@ export default function SettingsModal() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Azure Endpoint</label>
                   <input
                     value={extra.endpoint || ""}
-                    onChange={(e) => setExtra({ ...extra, endpoint: e.target.value })}
+                    onChange={(e) => { setExtra({ ...extra, endpoint: e.target.value }); setTestResult(null); }}
                     placeholder="https://your-resource.openai.azure.com"
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-indigo-500"
                   />
@@ -187,7 +187,7 @@ export default function SettingsModal() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Deployment Name</label>
                   <input
                     value={extra.deployment || ""}
-                    onChange={(e) => setExtra({ ...extra, deployment: e.target.value })}
+                    onChange={(e) => { setExtra({ ...extra, deployment: e.target.value }); setTestResult(null); }}
                     placeholder="gpt-4o-deployment"
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-indigo-500"
                   />
@@ -202,7 +202,7 @@ export default function SettingsModal() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Foundry Endpoint</label>
                   <input
                     value={extra.endpoint || ""}
-                    onChange={(e) => setExtra({ ...extra, endpoint: e.target.value })}
+                    onChange={(e) => { setExtra({ ...extra, endpoint: e.target.value }); setTestResult(null); }}
                     placeholder="https://your-resource.openai.azure.com"
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-indigo-500"
                   />
@@ -211,7 +211,7 @@ export default function SettingsModal() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Model Name <span className="text-gray-400 font-normal">(optional)</span></label>
                   <input
                     value={model}
-                    onChange={(e) => setModel(e.target.value)}
+                    onChange={(e) => { setModel(e.target.value); setTestResult(null); }}
                     placeholder="e.g. gpt-5.5, claude-opus-4-7"
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-indigo-500"
                   />
@@ -226,7 +226,7 @@ export default function SettingsModal() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Base URL</label>
                   <input
                     value={extra.base_url || ""}
-                    onChange={(e) => setExtra({ ...extra, base_url: e.target.value })}
+                    onChange={(e) => { setExtra({ ...extra, base_url: e.target.value }); setTestResult(null); }}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-indigo-500"
                   />
                 </div>
@@ -234,7 +234,7 @@ export default function SettingsModal() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Model Name</label>
                   <input
                     value={model}
-                    onChange={(e) => setModel(e.target.value)}
+                    onChange={(e) => { setModel(e.target.value); setTestResult(null); }}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-indigo-500"
                   />
                 </div>
@@ -247,7 +247,7 @@ export default function SettingsModal() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Model</label>
                 <select
                   value={model}
-                  onChange={(e) => setModel(e.target.value)}
+                  onChange={(e) => { setModel(e.target.value); setTestResult(null); }}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-indigo-500"
                 >
                   {current.models.map((m) => (
