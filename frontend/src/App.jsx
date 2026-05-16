@@ -4,6 +4,7 @@ import { api } from "./api/client.js";
 import StageIndicator from "./components/common/StageIndicator.jsx";
 import Spinner from "./components/common/Spinner.jsx";
 import SettingsModal from "./components/Settings/SettingsModal.jsx";
+import LLMPresetSwitcher from "./components/Settings/LLMPresetSwitcher.jsx";
 import UploadZone from "./components/Stage1_Upload/UploadZone.jsx";
 import ContextInput from "./components/Stage1_Upload/ContextInput.jsx";
 import SchemaCard from "./components/Stage1_Upload/SchemaCard.jsx";
@@ -337,25 +338,28 @@ export default function App() {
 
           {/* Settings pinned to sidebar bottom */}
           <div className="border-t border-gray-200 p-3">
-            <button
-              onClick={() => setShowSettings(true)}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-gray-200 transition-colors"
-              title="Open Settings"
-            >
-              <span className="text-lg">⚙️</span>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-gray-700">Settings</div>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isDemo ? "bg-amber-400" : "bg-emerald-400"}`} />
-                  <span className="text-xs text-gray-500">{providerLabel}</span>
-                </div>
-                {modelLabel && (
-                  <div className="text-xs text-gray-400 truncate mt-0.5" title={modelLabel}>
-                    {modelLabel}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setShowSettings(true)}
+                className="flex-1 flex items-center gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-gray-200 transition-colors"
+                title="Open Settings"
+              >
+                <span className="text-lg">⚙️</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-gray-700">Settings</div>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isDemo ? "bg-amber-400" : "bg-emerald-400"}`} />
+                    <span className="text-xs text-gray-500">{providerLabel}</span>
                   </div>
-                )}
-              </div>
-            </button>
+                  {modelLabel && (
+                    <div className="text-xs text-gray-400 truncate mt-0.5" title={modelLabel}>
+                      {modelLabel}
+                    </div>
+                  )}
+                </div>
+              </button>
+              <LLMPresetSwitcher currentConfig={llmSettings} />
+            </div>
           </div>
         </aside>
 

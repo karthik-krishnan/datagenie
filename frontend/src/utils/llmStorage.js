@@ -99,3 +99,43 @@ export function setAppSettings(settings) {
     // storage quota exceeded or private browsing — silently ignore
   }
 }
+
+// ── LLM Presets (named snapshots of a full provider config) ──────────────────
+const PRESETS_KEY = "datagenie_llm_presets";
+
+export function getLLMPresets() {
+  try {
+    return JSON.parse(localStorage.getItem(PRESETS_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+export function saveCurrentAsPreset(name, config) {
+  try {
+    const presets = getLLMPresets();
+    const preset = {
+      id: Date.now().toString(),
+      name: name.trim(),
+      provider: config.provider || "demo",
+      api_key: config.api_key || "",
+      model: config.model || "",
+      extra_config: config.extra_config || {},
+    };
+    const updated = [...presets, preset];
+    localStorage.setItem(PRESETS_KEY, JSON.stringify(updated));
+    return updated;
+  } catch {
+    return getLLMPresets();
+  }
+}
+
+export function deleteLLMPreset(id) {
+  try {
+    const updated = getLLMPresets().filter((p) => p.id !== id);
+    localStorage.setItem(PRESETS_KEY, JSON.stringify(updated));
+    return updated;
+  } catch {
+    return getLLMPresets();
+  }
+}

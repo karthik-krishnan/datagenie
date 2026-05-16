@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { getLLMConfig, setLLMConfig, getAppSettings, setAppSettings } from "../utils/llmStorage.js";
+import { getLLMConfig, setLLMConfig, getAppSettings, setAppSettings, getLLMPresets, saveCurrentAsPreset, deleteLLMPreset } from "../utils/llmStorage.js";
 
 /**
  * Sort columns so PK appears first, then FK columns (_id), then everything else.
@@ -136,6 +136,9 @@ export const useAppStore = create((set, get) => ({
   setOutputConfig: (c) => set({ outputConfig: { ...get().outputConfig, ...c } }),
   setLLMSettings: (s) => { setLLMConfig(s); set({ llmSettings: s }); },
   setAppSettings: (s) => { setAppSettings(s); set({ appSettings: s }); },
+  llmPresets: getLLMPresets(),
+  savePreset: (name, config) => { const updated = saveCurrentAsPreset(name, config); set({ llmPresets: updated }); },
+  deletePreset: (id) => { const updated = deleteLLMPreset(id); set({ llmPresets: updated }); },
   setPreviewData: (p) => set({ previewData: p }),
   setLoading: (b) => set({ isLoading: b }),
   setError: (e) => set({ error: e }),
