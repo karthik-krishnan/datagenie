@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import ChipSelector from "../common/ChipSelector.jsx";
 import { api } from "../../api/client.js";
+import { getLLMConfig } from "../../utils/llmStorage.js";
 
 // ─── Framework catalogue shown to the user ──────────────────────────────────
 const ALL_FRAMEWORKS = [
@@ -201,35 +202,42 @@ export default function ComplianceReviewPanel({
 
     // If this is a custom rule text, kick off background normalisation
     if (patch.action === "Custom" && patch.custom_rule) {
-      setNormalizingFields((prev) => ({ ...prev, [fieldName]: true }));
-      try {
-        const result = await api.normalizeRule(patch.custom_rule);
-        if (result?.masking_op) {
-          // Success — store the structured op and clear any warning
-          onUpdate((prev) => ({
-            ...prev,
-            [fieldName]: { ...(prev[fieldName] || {}), masking_op: result.masking_op },
-          }));
-          setRuleWarnings((prev) => {
+      const isDemo = getLLMConfig().provider === "demo";
+      if (isDemo) {
+        // Demo mode has no LLM — custom rules are saved but not applied at generation time
+        setRuleWarnings((prev) => ({
+          ...prev,
+          [fieldName]: "Custom rules require an LLM provider. Rule saved but will not be applied in Demo mode.",
+        }));
+      } else {
+        setNormalizingFields((prev) => ({ ...prev, [fieldName]: true }));
+        try {
+          const result = await api.normalizeRule(patch.custom_rule);
+          if (result?.masking_op) {
+            onUpdate((prev) => ({
+              ...prev,
+              [fieldName]: { ...(prev[fieldName] || {}), masking_op: result.masking_op },
+            }));
+            setRuleWarnings((prev) => {
+              const copy = { ...prev };
+              delete copy[fieldName];
+              return copy;
+            });
+          } else {
+            setRuleWarnings((prev) => ({
+              ...prev,
+              [fieldName]: "Couldn't parse this rule. Try rephrasing as e.g. \"show last 4 digits\", \"mask first 6 chars\", or \"redact\".",
+            }));
+          }
+        } catch (_) {
+          // Normalisation failure is non-fatal
+        } finally {
+          setNormalizingFields((prev) => {
             const copy = { ...prev };
             delete copy[fieldName];
             return copy;
           });
-        } else {
-          // LLM couldn't parse it — surface a helpful hint
-          setRuleWarnings((prev) => ({
-            ...prev,
-            [fieldName]: "Couldn't parse this rule automatically. Try rephrasing as e.g. \"show last 4 digits\", \"mask first 6 chars\", or \"redact\".",
-          }));
         }
-      } catch (_) {
-        // Normalisation failure is non-fatal — keyword fallback runs at generation time
-      } finally {
-        setNormalizingFields((prev) => {
-          const copy = { ...prev };
-          delete copy[fieldName];
-          return copy;
-        });
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
