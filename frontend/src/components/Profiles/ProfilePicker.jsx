@@ -191,9 +191,7 @@ export default function ProfilePicker() {
                       {activePreset ? activePreset.name : providerLabel}
                     </span>
                   </div>
-                  {activePreset ? (
-                    <div className="text-xs text-gray-400 truncate mt-0.5">{providerLabel}{modelLabel ? ` · ${modelLabel}` : ""}</div>
-                  ) : modelLabel && (
+                  {!activePreset && modelLabel && (
                     <div className="text-xs text-gray-400 truncate mt-0.5" title={modelLabel}>{modelLabel}</div>
                   )}
                 </div>
