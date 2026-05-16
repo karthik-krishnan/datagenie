@@ -288,21 +288,14 @@ export default function SettingsModal() {
 
         {/* ── Sticky footer — always visible ──────────────────────────────── */}
         <div className="flex-shrink-0 border-t border-gray-200 bg-white px-6 py-4 rounded-b-2xl flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={testConnection}
-              disabled={testing || provider === "demo" || !keyReady}
-              title={!keyReady ? "Enter an API key first" : ""}
-              className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-40 text-sm"
-            >
-              {testing ? <><Spinner /> Testing…</> : "🔌 Test Connection"}
-            </button>
-            {testResult && (
-              <span className={`text-sm ${testResult.ok ? "text-green-700" : "text-red-600"}`}>
-                {testResult.ok ? "✓" : "✗"} {testResult.message}
-              </span>
-            )}
-          </div>
+          <button
+            onClick={testConnection}
+            disabled={testing || provider === "demo" || !keyReady}
+            title={testResult && !testResult.ok ? testResult.message : (!keyReady ? "Enter an API key first" : "")}
+            className={`px-4 py-2 rounded-lg border text-sm disabled:opacity-40 ${testResult ? (testResult.ok ? "border-green-400 bg-green-50 text-green-700" : "border-red-300 bg-red-50 text-red-600") : "border-gray-300 text-gray-700 hover:bg-gray-50"}`}
+          >
+            {testing ? <><Spinner /> Testing…</> : testResult ? (testResult.ok ? "✓ Connected" : "✗ Failed") : "🔌 Test Connection"}
+          </button>
           <div className="flex gap-2">
             <button onClick={() => setShowSettings(false)} className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50">Cancel</button>
             <button onClick={save} className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
