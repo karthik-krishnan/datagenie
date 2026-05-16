@@ -79,10 +79,10 @@ Datagenia is a full-stack application that generates realistic, compliant synthe
 
 ### Settings
 - **Sidebar placement** — Settings button consistently at the bottom-left on every screen
-- **6 LLM providers** — Anthropic, OpenAI, Azure OpenAI, Google, Ollama, Demo
+- **7 LLM providers** — Anthropic, OpenAI, Azure OpenAI, Azure AI Foundry, Google, Ollama, Demo
 - **Per-provider key storage** — switching providers restores that provider's previously saved key/model/extras
 - **Compliance feature toggle** — turn off regulatory compliance globally for simpler workflows
-- **Test connection** — verify API key before saving
+- **Test connection** — verify connectivity inline; result shown inside the button (✓ Connected / ✗ Failed); resets automatically when provider, key, or model changes
 
 ---
 
@@ -109,16 +109,17 @@ Datagenia is a full-stack application that generates realistic, compliant synthe
 
 ## 🤖 LLM Configuration
 
-Open **Settings (⚙️)** from the sidebar bottom-left. Config is stored in `localStorage` — no server-side storage.
+Open **Settings (⚙️)** from the sidebar bottom-left. Config is stored in `localStorage` — never sent to or stored on the server.
 
-| Provider | Notes |
-|---|---|
-| **Anthropic** | Claude Sonnet / Opus — recommended for best schema inference |
-| **OpenAI** | GPT-4o / GPT-4 Turbo |
-| **Azure OpenAI** | Requires endpoint and deployment name |
-| **Google** | Gemini 1.5 Pro / Flash |
-| **Ollama** | Local models (e.g. `llama3`), no API key needed |
-| **Demo** | No API key — rule-based inference only |
+| Provider | What to enter | Notes |
+|---|---|---|
+| **Anthropic** | API key | Claude Sonnet / Opus — recommended for best results |
+| **OpenAI** | API key | GPT-4o / GPT-4 Turbo |
+| **Azure OpenAI** | API key + endpoint + deployment name | Standard Azure OpenAI resource |
+| **Azure AI Foundry** | API key + base URL | Supports both Claude (via Anthropic SDK) and GPT models — routing is automatic based on the model name you enter |
+| **Google** | API key | Gemini 1.5 Pro / Flash |
+| **Ollama** | Base URL (default `http://localhost:11434`) | Local models, no API key needed |
+| **Demo** | Nothing | Loads a fixed sample dataset; no LLM calls, no schema inference from text |
 
 ---
 
@@ -185,7 +186,7 @@ datagenie/
 │       ├── data_generator.py        # Faker-based engine: FK integrity, unique constraints, variable child counts
 │       ├── starter_templates.py     # 4 domain multi-table + 4 single-table canned schemas + demo dataset
 │       ├── output_formatter.py      # CSV/TSV/JSON/JSONL/Excel/XML/YAML/Parquet
-│       ├── masking.py               # Plain-English rule → structured MaskingOp
+│       ├── masking.py               # Plain-English rule → LLM-generated Python lambda, applied at generation time
 │       ├── schema_inferrer.py       # File-based column type + stats inference
 │       └── file_parser.py           # CSV/Excel/JSON/XML/YAML → normalised rows
 │
@@ -203,7 +204,7 @@ datagenie/
 | Backend | FastAPI, SQLAlchemy 2 (async), Uvicorn |
 | Database | PostgreSQL 15 |
 | Data generation | Faker, pandas, openpyxl, pyarrow |
-| LLM providers | Anthropic, OpenAI, Azure OpenAI, Google Generative AI, Ollama |
+| LLM providers | Anthropic, OpenAI, Azure OpenAI, Azure AI Foundry, Google Generative AI, Ollama |
 | Containerisation | Docker, Docker Compose, nginx |
 
 ---
@@ -250,10 +251,60 @@ The Vite dev server proxies `/api/*` to `http://localhost:8000` automatically.
 
 ---
 
+## ⚙️ Environment Variables
+
+All backend config is read from environment variables. Defaults are sensible for local development.
+
+| Variable | Default | Description |
+|---|---|---|
+| `DATABASE_URL` | *(required)* | PostgreSQL async DSN, e.g. `postgresql+asyncpg://user:pass@host/db` |
+| `UPLOAD_DIR` | `/app/uploads` | Where uploaded sample files are stored |
+| `MAX_VOLUME_RECORDS` | `10000` | Hard cap on root-entity rows per generate request. Child rows multiply on top. Lower this on memory-constrained deployments (e.g. Render free tier). |
+
+### Setting variables in Docker Compose
+
+Edit the `environment:` block in `docker-compose.yml` directly:
+
+```yaml
+  backend:
+    environment:
+      DATABASE_URL: postgresql+asyncpg://tdg:tdgpass@db:5432/testdatagen
+      MAX_VOLUME_RECORDS: 2000   # ← override here
+```
+
+Then restart the backend container:
+
+```bash
+docker-compose up -d --build backend
+```
+
+### Setting variables in a `.env` file
+
+Copy `.env.example` to `.env` and edit it. Docker Compose picks it up automatically:
+
+```bash
+cp .env.example .env
+# edit .env, then:
+docker-compose up -d --build backend
+```
+
+### Setting variables for native / no-Docker runs
+
+```bash
+export MAX_VOLUME_RECORDS=2000
+uvicorn main:app --reload --port 8000
+```
+
+### Setting variables on Render
+
+In your Render service dashboard → **Environment** tab, add key/value pairs. Changes take effect on the next deploy. No rebuild is needed for env-only changes — Render re-starts the service automatically.
+
+---
+
 ## 🗒 Notes
 
 - **No data leaves your environment** when using Ollama or self-hosting. With cloud providers, only column names and sample values are sent — never full dataset rows.
-- **Demo mode** works fully without any API key — the app loads a fixed `jobs → applicants → interviews` demo dataset so every stage can be explored immediately. Schema inference uses rule-based detection with no LLM call.
+- **Demo mode** works fully without any API key — the app loads a fixed `jobs → applicants → interviews` demo dataset so every stage can be explored immediately. No LLM calls are made; free-text context descriptions are ignored in this mode.
 - **Starter templates** (E-Commerce, Healthcare, HR & Payroll, Banking) are only loaded when a user explicitly picks one from the home screen — they are never silently selected based on what you type in the description box.
 - **Compliance is optional** — disable it in Settings to skip sensitivity tagging and the compliance stage entirely.
 - Starter card schemas use a dedicated `/api/schema/demo?keyword=` endpoint; the main `/api/schema/infer` endpoint is always used for user-supplied descriptions and uploaded files.
