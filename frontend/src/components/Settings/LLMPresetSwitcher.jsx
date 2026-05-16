@@ -12,10 +12,11 @@ const PROVIDER_LABEL = {
 };
 
 export default function LLMPresetSwitcher({ currentConfig }) {
-  const llmPresets   = useAppStore((s) => s.llmPresets);
-  const savePreset   = useAppStore((s) => s.savePreset);
-  const deletePreset = useAppStore((s) => s.deletePreset);
-  const setLLMSettings = useAppStore((s) => s.setLLMSettings);
+  const llmPresets    = useAppStore((s) => s.llmPresets);
+  const savePreset    = useAppStore((s) => s.savePreset);
+  const deletePreset  = useAppStore((s) => s.deletePreset);
+  const activatePreset = useAppStore((s) => s.activatePreset);
+  const activePresetId = useAppStore((s) => s.activePresetId);
 
   const [open, setOpen]       = useState(false);
   const [saveName, setSaveName] = useState("");
@@ -38,13 +39,8 @@ export default function LLMPresetSwitcher({ currentConfig }) {
     if (saving && inputRef.current) inputRef.current.focus();
   }, [saving]);
 
-  const activatePreset = (preset) => {
-    setLLMSettings({
-      provider:     preset.provider,
-      api_key:      preset.api_key,
-      model:        preset.model,
-      extra_config: preset.extra_config || {},
-    });
+  const handleActivate = (preset) => {
+    activatePreset(preset);
     setOpen(false);
   };
 
@@ -55,9 +51,7 @@ export default function LLMPresetSwitcher({ currentConfig }) {
     setSaving(false);
   };
 
-  const isActive = (preset) =>
-    preset.provider === currentConfig?.provider &&
-    preset.model    === currentConfig?.model;
+  const isActive = (preset) => preset.id === activePresetId;
 
   return (
     <div className="relative" ref={popoverRef}>
@@ -91,7 +85,7 @@ export default function LLMPresetSwitcher({ currentConfig }) {
                 <li
                   key={preset.id}
                   className={`flex items-center gap-2 px-3 py-2.5 hover:bg-gray-50 cursor-pointer group ${isActive(preset) ? "bg-indigo-50" : ""}`}
-                  onClick={() => activatePreset(preset)}
+                  onClick={() => handleActivate(preset)}
                 >
                   {/* Active dot */}
                   <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isActive(preset) ? "bg-indigo-500" : "bg-transparent"}`} />

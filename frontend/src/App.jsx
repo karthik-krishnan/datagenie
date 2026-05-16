@@ -105,6 +105,7 @@ export default function App() {
     showSettings, setShowSettings,
     llmSettings,
     appSettings,
+    llmPresets, activePresetId,
     showProfilePicker, setShowProfilePicker,
     profileId,
     setShowSaveProfileModal,
@@ -303,8 +304,9 @@ export default function App() {
     demo:      "Demo",
   }[llmSettings?.provider] ?? llmSettings?.provider ?? "Demo";
 
-  const isDemo      = !llmSettings?.provider || llmSettings.provider === "demo";
-  const modelLabel  = !isDemo && llmSettings?.model ? llmSettings.model : null;
+  const isDemo       = !llmSettings?.provider || llmSettings.provider === "demo";
+  const activePreset = activePresetId ? llmPresets.find((p) => p.id === activePresetId) : null;
+  const modelLabel   = !isDemo && llmSettings?.model ? llmSettings.model : null;
 
   return (
     <div className="h-screen bg-white text-gray-900 flex flex-col overflow-hidden">
@@ -349,12 +351,14 @@ export default function App() {
                   <div className="text-sm font-medium text-gray-700">Settings</div>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isDemo ? "bg-amber-400" : "bg-emerald-400"}`} />
-                    <span className="text-xs text-gray-500">{providerLabel}</span>
+                    <span className="text-xs text-gray-500 truncate" title={activePreset ? activePreset.name : providerLabel}>
+                      {activePreset ? activePreset.name : providerLabel}
+                    </span>
                   </div>
-                  {modelLabel && (
-                    <div className="text-xs text-gray-400 truncate mt-0.5" title={modelLabel}>
-                      {modelLabel}
-                    </div>
+                  {activePreset ? (
+                    <div className="text-xs text-gray-400 truncate mt-0.5">{providerLabel}{modelLabel ? ` · ${modelLabel}` : ""}</div>
+                  ) : modelLabel && (
+                    <div className="text-xs text-gray-400 truncate mt-0.5" title={modelLabel}>{modelLabel}</div>
                   )}
                 </div>
               </button>

@@ -77,7 +77,7 @@ function FrameworkBadges({ complianceJson }) {
 }
 
 export default function ProfilePicker() {
-  const { setShowProfilePicker, loadProfile, applyInferResult, showSettings, setShowSettings, llmSettings, appSettings } = useAppStore();
+  const { setShowProfilePicker, loadProfile, applyInferResult, showSettings, setShowSettings, llmSettings, appSettings, llmPresets, activePresetId } = useAppStore();
   const [profiles, setProfiles] = useState([]);
 
   const isDemo = !llmSettings?.provider || llmSettings.provider === "demo";
@@ -85,7 +85,8 @@ export default function ProfilePicker() {
     anthropic: "Anthropic", openai: "OpenAI", azure: "Azure OpenAI", azure_foundry: "Azure AI Foundry",
     google: "Google", ollama: "Ollama", demo: "Demo",
   }[llmSettings?.provider] ?? "Demo";
-  const modelLabel = !isDemo && llmSettings?.model ? llmSettings.model : null;
+  const modelLabel    = !isDemo && llmSettings?.model ? llmSettings.model : null;
+  const activePreset  = activePresetId ? llmPresets.find((p) => p.id === activePresetId) : null;
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -186,9 +187,13 @@ export default function ProfilePicker() {
                   <div className="text-sm font-medium text-gray-700">Settings</div>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isDemo ? "bg-amber-400" : "bg-emerald-400"}`} />
-                    <span className="text-xs text-gray-500">{providerLabel}</span>
+                    <span className="text-xs text-gray-500 truncate" title={activePreset ? activePreset.name : providerLabel}>
+                      {activePreset ? activePreset.name : providerLabel}
+                    </span>
                   </div>
-                  {modelLabel && (
+                  {activePreset ? (
+                    <div className="text-xs text-gray-400 truncate mt-0.5">{providerLabel}{modelLabel ? ` · ${modelLabel}` : ""}</div>
+                  ) : modelLabel && (
                     <div className="text-xs text-gray-400 truncate mt-0.5" title={modelLabel}>{modelLabel}</div>
                   )}
                 </div>

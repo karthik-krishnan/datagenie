@@ -56,6 +56,7 @@ export function getProviderConfig(provider) {
 }
 
 // Saves the current provider's config without touching other providers' entries.
+// Always clears activePresetId — manual save means user owns the config now.
 export function setLLMConfig(config) {
   try {
     const stored = _read();
@@ -65,10 +66,21 @@ export function setLLMConfig(config) {
       model: config.model || "",
       extra_config: config.extra_config || {},
     };
-    localStorage.setItem(LS_KEY, JSON.stringify({ provider: config.provider, configs }));
+    localStorage.setItem(LS_KEY, JSON.stringify({ provider: config.provider, configs, activePresetId: null }));
   } catch {
     // storage quota exceeded or private browsing — silently ignore
   }
+}
+
+export function getActivePresetId() {
+  try { return _read().activePresetId || null; } catch { return null; }
+}
+
+export function setActivePresetId(id) {
+  try {
+    const stored = _read();
+    localStorage.setItem(LS_KEY, JSON.stringify({ ...stored, activePresetId: id }));
+  } catch {}
 }
 
 export function clearLLMConfig() {

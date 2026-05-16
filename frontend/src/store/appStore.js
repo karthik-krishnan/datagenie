@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { getLLMConfig, setLLMConfig, getAppSettings, setAppSettings, getLLMPresets, saveCurrentAsPreset, deleteLLMPreset } from "../utils/llmStorage.js";
+import { getLLMConfig, setLLMConfig, getAppSettings, setAppSettings, getLLMPresets, saveCurrentAsPreset, deleteLLMPreset, getActivePresetId, setActivePresetId } from "../utils/llmStorage.js";
 
 /**
  * Sort columns so PK appears first, then FK columns (_id), then everything else.
@@ -134,11 +134,18 @@ export const useAppStore = create((set, get) => ({
   },
   setMaxVolumeRecords: (n) => set({ maxVolumeRecords: n }),
   setOutputConfig: (c) => set({ outputConfig: { ...get().outputConfig, ...c } }),
-  setLLMSettings: (s) => { setLLMConfig(s); set({ llmSettings: s }); },
+  setLLMSettings: (s) => { setLLMConfig(s); set({ llmSettings: s, activePresetId: null }); },
   setAppSettings: (s) => { setAppSettings(s); set({ appSettings: s }); },
   llmPresets: getLLMPresets(),
+  activePresetId: getActivePresetId(),
   savePreset: (name, config) => { const updated = saveCurrentAsPreset(name, config); set({ llmPresets: updated }); },
   deletePreset: (id) => { const updated = deleteLLMPreset(id); set({ llmPresets: updated }); },
+  activatePreset: (preset) => {
+    const config = { provider: preset.provider, api_key: preset.api_key, model: preset.model, extra_config: preset.extra_config || {} };
+    setLLMConfig(config);
+    setActivePresetId(preset.id);
+    set({ llmSettings: config, activePresetId: preset.id });
+  },
   setPreviewData: (p) => set({ previewData: p }),
   setLoading: (b) => set({ isLoading: b }),
   setError: (e) => set({ error: e }),
