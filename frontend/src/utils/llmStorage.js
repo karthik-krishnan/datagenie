@@ -136,9 +136,10 @@ export function saveCurrentAsPreset(name, config) {
     };
     const updated = [...presets, preset];
     localStorage.setItem(PRESETS_KEY, JSON.stringify(updated));
-    return updated;
+    setActivePresetId(preset.id);
+    return { presets: updated, id: preset.id };
   } catch {
-    return getLLMPresets();
+    return { presets: getLLMPresets(), id: null };
   }
 }
 

@@ -138,7 +138,7 @@ export const useAppStore = create((set, get) => ({
   setAppSettings: (s) => { setAppSettings(s); set({ appSettings: s }); },
   llmPresets: getLLMPresets(),
   activePresetId: getActivePresetId(),
-  savePreset: (name, config) => { const updated = saveCurrentAsPreset(name, config); set({ llmPresets: updated }); },
+  savePreset: (name, config) => { const { presets, id } = saveCurrentAsPreset(name, config); set({ llmPresets: presets, activePresetId: id }); },
   deletePreset: (id) => { const updated = deleteLLMPreset(id); set({ llmPresets: updated }); },
   activatePreset: (preset) => {
     const config = { provider: preset.provider, api_key: preset.api_key, model: preset.model, extra_config: preset.extra_config || {} };
